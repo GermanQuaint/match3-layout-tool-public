@@ -1,0 +1,2082 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Match-3 Layout Lab · v1.0.0</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a0d14;
+      --panel: #121824;
+      --panel-2: #171f2d;
+      --line: #293449;
+      --text: #f5f7fb;
+      --muted: #9ba8bd;
+      --accent: #b7f34a;
+      --accent-2: #6ee7f2;
+      --danger: #ff6e82;
+      --radius: 18px;
+      --shadow: 0 20px 60px rgba(0, 0, 0, .32);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 82% 12%, rgba(110, 231, 242, .10), transparent 28rem),
+        radial-gradient(circle at 8% 95%, rgba(183, 243, 74, .08), transparent 30rem),
+        var(--bg);
+      color: var(--text);
+    }
+
+    button, input, textarea { font: inherit; }
+    button { color: inherit; }
+    button, label, input { -webkit-tap-highlight-color: transparent; }
+
+    .app { min-height: 100vh; min-height: 100dvh; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 20px clamp(18px, 3vw, 42px);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      background: rgba(10, 13, 20, .78);
+      backdrop-filter: blur(16px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .brand-mark {
+      width: 38px; height: 38px; border-radius: 12px;
+      display: grid; place-items: center;
+      background: var(--accent); color: #10150a; font-weight: 900;
+      box-shadow: 0 0 0 6px rgba(183, 243, 74, .09);
+    }
+    .brand h1 { font-size: 17px; margin: 0; letter-spacing: .02em; }
+    .version-badge {
+      color: var(--accent-2); font-size: 10px; font-weight: 800;
+      letter-spacing: .08em; text-transform: uppercase;
+    }
+    .brand p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(310px, 390px) minmax(0, 1fr);
+      gap: 22px;
+      padding: 22px clamp(18px, 3vw, 42px) 40px;
+      align-items: start;
+    }
+
+    .config, .preview-card, .timeline-card {
+      background: linear-gradient(180deg, rgba(23,31,45,.96), rgba(16,22,33,.96));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .preview-card, .timeline-card { min-width: 0; width: 100%; }
+    .config { padding: 20px; position: sticky; top: 99px; max-height: calc(100dvh - 120px); overflow: auto; }
+    .section + .section { border-top: 1px solid rgba(255,255,255,.08); margin-top: 20px; padding-top: 20px; }
+    .section-title { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .11em; color: var(--accent-2); }
+    .section-note { margin: 0 0 14px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+    .field { display: grid; gap: 7px; margin-top: 14px; }
+    .field > label, .field-label { color: #d9e0ea; font-size: 13px; font-weight: 650; }
+    .dimension-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .inline { display: flex; align-items: center; gap: 10px; }
+    .inline > * { min-width: 0; }
+    input[type="number"], input[type="text"], textarea {
+      width: 100%; min-height: 42px; padding: 9px 11px;
+      border: 1px solid var(--line); border-radius: 11px;
+      background: #0b1019; color: var(--text); outline: none;
+    }
+    textarea { min-height: 62px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; line-height: 1.4; word-break: break-all; }
+    input:focus, textarea:focus { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(110,231,242,.12); }
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+    .value-badge {
+      min-width: 42px; text-align: center; padding: 7px 8px; border-radius: 10px;
+      background: rgba(183,243,74,.12); color: var(--accent); font-weight: 800;
+    }
+    .segmented { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+    .segmented.three { grid-template-columns: repeat(3, 1fr); }
+    .segmented.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .segmented.five label { display: grid; place-items: center; min-height: 54px; padding: 7px 4px; font-size: 10px; line-height: 1.2; }
+    .segmented input, .profile-grid input { position: absolute; opacity: 0; pointer-events: none; }
+    .segmented label, .profile-card {
+      cursor: pointer; border: 1px solid var(--line); border-radius: 11px;
+      background: #0d131e; transition: .18s ease;
+    }
+    .segmented label { text-align: center; padding: 10px 7px; font-size: 12px; }
+    .segmented input:checked + label, .profile-card:has(input:checked) {
+      border-color: var(--accent); background: rgba(183,243,74,.09); color: #efffd2;
+    }
+    .direction-picker {
+      width: min(100%, 210px); aspect-ratio: 1; display: grid;
+      grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 6px; margin-top: 8px;
+    }
+    .direction-picker input { position: absolute; opacity: 0; pointer-events: none; }
+    .direction-picker label {
+      display: grid; place-items: center; align-content: center; gap: 2px; min-width: 0;
+      cursor: pointer; border: 1px solid var(--line); border-radius: 12px; background: #0d131e;
+      color: var(--muted); font-size: 10px; transition: .18s ease;
+    }
+    .direction-picker label b { color: #fff; font-size: 20px; line-height: 1; }
+    .direction-picker input:checked + label { border-color: var(--accent); background: rgba(183,243,74,.09); color: #efffd2; box-shadow: 0 0 0 2px rgba(183,243,74,.1); }
+    .direction-picker input:focus-visible + label { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+    .direction-top { grid-area: 1 / 2; }
+    .direction-left { grid-area: 2 / 1; }
+    .direction-center { grid-area: 2 / 2; display: grid; place-items: center; border-radius: 12px; border: 1px dashed rgba(255,255,255,.1); color: #506078; font-size: 18px; }
+    .direction-right { grid-area: 2 / 3; }
+    .direction-bottom { grid-area: 3 / 2; }
+
+    .profile-grid { display: grid; gap: 8px; }
+    .profile-card { display: grid; grid-template-columns: 34px 1fr; gap: 10px; padding: 11px; }
+    .profile-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--panel-2); }
+    .profile-card strong { display: block; font-size: 13px; margin-bottom: 3px; }
+    .profile-card small { display: block; font-size: 11px; line-height: 1.35; color: var(--muted); }
+    .profile-card:has(input:checked) small { color: #c9d5b7; }
+
+    .palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .color-control {
+      position: relative; height: 42px; border: 1px solid var(--line); border-radius: 11px;
+      overflow: hidden; background: #0d131e;
+    }
+    .color-control input { position: absolute; inset: -8px; width: calc(100% + 16px); height: calc(100% + 16px); border: 0; cursor: pointer; }
+    .color-control span { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-size: 18px; font-weight: 900; line-height: 1; text-shadow: 0 2px 8px rgba(0,0,0,.72); }
+
+    .check-row { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; cursor: pointer; }
+    .check-row input { margin-top: 2px; accent-color: var(--accent); }
+    .check-row span { font-size: 13px; line-height: 1.35; }
+    .check-row small { display: block; color: var(--muted); margin-top: 3px; }
+    .modifier-stack { display: grid; gap: 10px; margin: 12px 0; }
+    .modifier-group { padding: 12px; border-radius: 12px; background: rgba(183,243,74,.045); border: 1px solid rgba(183,243,74,.14); }
+    .modifier-group + .modifier-group { margin-top: 2px; }
+    .modifier-group .check-row { padding: 0; }
+    .modifier-group .check-row + .check-row { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(148,163,184,.14); }
+    .modifier-heading { margin-bottom: 9px; font-size: 12px; font-weight: 800; letter-spacing: .04em; color: #dbe8f7; }
+    .modifier-group .section-note { margin-bottom: 0; }
+    .check-row.is-disabled { cursor: not-allowed; opacity: .62; }
+    .masters-moves-field { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(148,163,184,.14); }
+    .masters-moves-field.is-disabled { cursor: not-allowed; opacity: .62; }
+    .masters-moves-field input { width: 100%; }
+    .dev-badge { display: inline-block; margin-left: 6px; padding: 2px 5px; border-radius: 999px; background: rgba(110,231,242,.11); color: var(--cyan); font-size: 9px; font-style: normal; letter-spacing: .05em; text-transform: uppercase; vertical-align: 1px; }
+    .rule-callout {
+      margin-top: 10px; padding: 12px; border-radius: 12px; background: rgba(110,231,242,.07);
+      border: 1px solid rgba(110,231,242,.18); font-size: 12px; line-height: 1.45; color: #cbd8e7;
+    }
+
+    .seed-button, .ghost-button, .primary-button, .small-button {
+      border: 1px solid var(--line); border-radius: 11px; cursor: pointer; transition: transform .14s ease, border-color .14s ease, background .14s ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    .seed-button, .ghost-button { background: #182131; padding: 10px 12px; white-space: nowrap; }
+    .seed-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .seed-button { min-width: 0; }
+    .seed-button:disabled { cursor: not-allowed; opacity: .42; color: #8090a5; background: #111824; transform: none; }
+    .copy-control { position: relative; min-width: 0; }
+    .copy-control .seed-button { width: 100%; }
+    .copy-tooltip {
+      position: absolute; z-index: 10; left: 50%; bottom: calc(100% + 9px); width: 220px;
+      padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px;
+      background: #0c121c; color: #dbe8f7; font-size: 11px; line-height: 1.35; text-align: center;
+      opacity: 0; pointer-events: none; transform: translate(-50%, 4px); transition: opacity .14s ease, transform .14s ease;
+      box-shadow: 0 10px 24px rgba(0,0,0,.34);
+    }
+    .copy-control[data-disabled="true"]:hover .copy-tooltip { opacity: 1; transform: translate(-50%, 0); }
+    .primary-button {
+      width: 100%; min-height: 52px; border: 0; background: var(--accent); color: #0b1006;
+      font-weight: 900; margin-top: 20px; box-shadow: 0 12px 26px rgba(183,243,74,.19);
+    }
+    .small-button { background: #151e2c; padding: 8px 10px; font-size: 12px; }
+    .small-button.active { border-color: var(--accent); color: var(--accent); }
+    .small-button[hidden] { display: none; }
+    #finish-manual { background: var(--accent); border-color: var(--accent); color: #0b1006; font-weight: 900; box-shadow: 0 8px 20px rgba(183,243,74,.24); }
+    #finish-manual:hover { background: #c8ff63; border-color: #c8ff63; box-shadow: 0 10px 24px rgba(183,243,74,.32); }
+
+    .manual-panel { display: none; margin-top: 12px; }
+    .manual-panel.visible { display: block; }
+    .brushes { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; }
+    .brush {
+      width: 40px; height: 40px; padding: 3px; border-radius: 9px; border: 2px solid transparent;
+      background: #0b1019; cursor: pointer;
+    }
+    .brush svg, .manual-cell svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    .brush.active { border-color: #fff; outline: 2px solid var(--accent); }
+    .manual-grid { display: grid; gap: 4px; }
+    .manual-cell {
+      aspect-ratio: 1; border: 1px solid rgba(255,255,255,.11); border-radius: 7px; cursor: pointer;
+      background: #0b1019; padding: 4px;
+    }
+
+    .content { min-width: 0; display: grid; gap: 18px; }
+    .preview-card { overflow: hidden; }
+    .preview-head { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .preview-head h2 { margin: 0; font-size: 16px; }
+    .preview-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .playback-controls { display: flex; gap: 8px; }
+    .manual-swap-message { align-self: center; color: #ffd6dc; font-size: 12px; line-height: 1.3; text-align: right; }
+    .manual-swap-message[hidden] { display: none; }
+    .stage-area {
+      display: grid; grid-template-columns: minmax(280px, 560px) minmax(210px, 1fr); gap: clamp(16px, 3vw, 42px);
+      align-items: center; padding: clamp(18px, 4vw, 42px); min-height: 600px;
+      background:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 30px 30px;
+    }
+    .board-shell { width: 100%; max-width: 560px; margin: auto; }
+    #board { display: block; width: 100%; height: auto; max-height: 72vh; overflow: hidden; }
+    #board.manual-game { cursor: pointer; }
+    .board-glow { filter: drop-shadow(0 22px 34px rgba(0,0,0,.42)); }
+
+    .now-card { align-self: center; }
+    .eyebrow { color: var(--accent-2); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 800; }
+    .now-card h3 { font-size: clamp(24px, 3vw, 40px); line-height: 1.05; margin: 9px 0 12px; }
+    .now-card p { color: var(--muted); line-height: 1.55; font-size: 14px; max-width: 44ch; }
+    .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 18px; }
+    .metric { min-width: 0; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.07); }
+    .metric span { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .09em; }
+    .metric strong { display: block; min-width: 0; margin-top: 5px; font-size: 15px; overflow-wrap: anywhere; }
+    .progress { height: 5px; border-radius: 99px; overflow: hidden; background: #0b1019; margin-top: 18px; }
+    .progress > div { width: 0; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .18s linear; }
+    .error { display: none; margin-top: 12px; color: #ffd6dc; background: rgba(255,110,130,.10); border: 1px solid rgba(255,110,130,.25); border-radius: 11px; padding: 10px; font-size: 12px; }
+    .error.visible { display: block; }
+
+    .timeline-card { padding: 18px; }
+    .timeline-head { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin-bottom: 14px; }
+    .timeline-head h2 { margin: 0; font-size: 16px; }
+    .timeline-head p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+    .timeline { display: grid; grid-auto-flow: column; grid-auto-columns: 174px; gap: 10px; width: 100%; min-width: 0; overflow-x: auto; padding: 2px 2px 12px; scroll-snap-type: x proximity; }
+    .empty-timeline { padding: 28px; color: var(--muted); border: 1px dashed var(--line); border-radius: 13px; text-align: center; }
+    .stage-card { scroll-snap-align: start; border: 1px solid var(--line); border-radius: 13px; overflow: hidden; background: #0b1019; cursor: pointer; }
+    .stage-card.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(183,243,74,.13); }
+    .stage-thumb { display: grid; place-items: center; height: 180px; padding: 9px; background: #101722; }
+    .stage-thumb svg { display: block; width: 100%; height: 100%; }
+    .stage-meta { padding: 10px; }
+    .stage-meta b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stage-meta span { display: block; color: var(--muted); font-size: 10px; margin-top: 3px; }
+    .download { display: block; width: 100%; margin-top: 9px; padding: 7px; border: 1px solid var(--line); border-radius: 8px; background: #151e2c; color: #dbe3ef; cursor: pointer; font-size: 11px; text-align: center; text-decoration: none; }
+
+    .piece.matching { animation: match-pop .46s ease-in-out infinite alternate; }
+    .piece.big-matching { animation: big-match-pop .32s ease-in-out infinite alternate; }
+    .swap-ring { animation: pulse-ring .7s ease-in-out infinite alternate; }
+    #board.inspection-mode .piece.matching { animation-duration: 1.05s; }
+    #board.inspection-mode .piece.big-matching { animation-duration: .82s; }
+    #board.inspection-mode .swap-ring { animation-duration: 1.35s; }
+    #board.manual-game .piece.matching, #board.manual-game .piece.big-matching, #board.manual-game .swap-ring { animation-iteration-count: 1; }
+    #board.manual-static .piece.matching, #board.manual-static .piece.big-matching, #board.manual-static .swap-ring { animation: none; }
+    @keyframes match-pop { to { opacity: .2; filter: brightness(1.8) saturate(.7); } }
+    @keyframes big-match-pop { to { opacity: .12; filter: brightness(2.4) saturate(1.35) drop-shadow(0 0 14px #fff); } }
+    @keyframes pulse-ring { to { opacity: .34; stroke-width: 5; } }
+
+    @media (max-width: 980px) {
+      .workspace { grid-template-columns: 1fr; }
+      .config { position: static; max-height: none; }
+      .stage-area { grid-template-columns: minmax(250px, 520px) 1fr; min-height: 520px; }
+    }
+    @media (max-width: 700px) {
+      .topbar { position: static; align-items: flex-start; }
+      .workspace { padding: 14px; gap: 14px; }
+      .config, .timeline-card { padding: 16px; }
+      .stage-area { grid-template-columns: 1fr; padding: 18px; min-height: 0; }
+      .board-shell { max-width: 480px; }
+      .now-card h3 { font-size: 26px; }
+      .preview-head { align-items: flex-start; }
+      .playback-controls { flex-wrap: wrap; justify-content: end; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">M3</div>
+        <div><div class="brand-title"><h1>Match-3 Layout Lab</h1><span class="version-badge">v1.0.0</span></div><p>Детерминированные раскладки для креатива</p></div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="config" aria-label="Параметры генерации">
+        <section class="section">
+          <h2 class="section-title">01 · Seed / ключ проекта</h2>
+          <div class="field">
+            <label for="seed">Переносимый ключ</label>
+            <textarea id="seed" rows="2" maxlength="12000" autocomplete="off" spellcheck="false">DRAGON-4821</textarea>
+            <div class="seed-actions">
+              <span class="copy-control" id="copy-control" data-disabled="true">
+                <button class="seed-button" id="copy-seed" type="button" disabled aria-describedby="copy-tooltip">Копировать</button>
+                <span class="copy-tooltip" id="copy-tooltip" role="tooltip">Сначала нажмите «Сгенерировать и проиграть».</span>
+              </span>
+              <button class="seed-button" id="random-seed" type="button">Новый ключ</button>
+            </div>
+            <p class="section-note">Ключ хранит все настройки и ручную раскладку. Он обновляется при генерации или копировании. Вставьте ключ формата M3S1 или прежний M3L1 — параметры и этапы восстановятся автоматически.</p>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">02 · Режим</h2>
+          <p class="section-note">Автосценарий строит ходы сам. В ручном режиме вы меняете соседние фишки, а готовая запись появляется внизу после завершения партии.</p>
+          <div class="segmented">
+            <input id="gameplay-auto" type="radio" name="gameplay" value="auto" checked><label for="gameplay-auto">Автосценарий</label>
+            <input id="gameplay-manual" type="radio" name="gameplay" value="manual"><label for="gameplay-manual">Играть самому</label>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">03 · Профиль</h2>
+          <p class="section-note">Определяет правила и подписи событий. Выбрать можно один вариант.</p>
+          <div class="profile-grid" id="profiles">
+            <label class="profile-card">
+              <input type="radio" name="profile" value="empire">
+              <span class="profile-icon">🐉</span>
+              <span><strong>Empire &amp; Puzzles</strong><small>Особые фишки за линии из четырёх и пяти одинаковых элементов</small></span>
+            </label>
+            <label class="profile-card">
+              <input type="radio" name="profile" value="masters">
+              <span class="profile-icon">⚡</span>
+              <span><strong>Match Masters</strong><small>Дополнительный ход за 4+ и режим двух игроков</small></span>
+            </label>
+            <label class="profile-card">
+              <input type="radio" name="profile" value="universal" checked>
+              <span class="profile-icon">◆</span>
+              <span><strong>Универсальный</strong><small>Классический swap, match, collapse, refill</small></span>
+            </label>
+          </div>
+          <div class="rule-callout" id="rule-summary"></div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">04 · Фишки</h2>
+          <div class="field">
+            <span class="field-label">Размер поля</span>
+            <div class="dimension-grid">
+              <label class="field" for="board-cols">Столбцы
+                <input id="board-cols" type="number" min="3" max="12" step="1" value="7" inputmode="numeric">
+              </label>
+              <label class="field" for="board-rows">Строки
+                <input id="board-rows" type="number" min="3" max="12" step="1" value="7" inputmode="numeric">
+              </label>
+            </div>
+            <p class="section-note">От 3 до 12 столбцов и строк в текущей версии.</p>
+          </div>
+          <div class="field">
+            <label for="piece-count">Количество типов</label>
+            <div class="inline">
+              <input id="piece-count" type="range" min="3" max="8" step="1" value="5">
+              <output id="piece-count-value" class="value-badge">5</output>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">Цвета типов</span>
+            <div class="palette" id="palette"></div>
+          </div>
+        </section>
+
+        <section class="section" id="timing-section">
+          <h2 class="section-title">05 · Тайминг</h2>
+          <div class="field">
+            <label for="duration">Длительность геймплея, сек</label>
+            <input id="duration" type="number" min="1" step="1" value="12" inputmode="numeric">
+            <p class="section-note">Только целое число от 1. Верхнего ограничения в интерфейсе нет.</p>
+          </div>
+          <div class="field">
+            <label for="speed">Динамика матча за ход</label>
+            <div class="inline">
+              <input id="speed" type="range" min="1" max="10" step="1" value="5">
+              <output id="speed-value" class="value-badge">5</output>
+            </div>
+            <p class="section-note">Абстрактная шкала 1–10: медленно → быстро. Это не секунды.</p>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">06 · Правила</h2>
+          <div class="field">
+            <span class="field-label">Новые фишки появляются</span>
+            <div class="direction-picker" role="radiogroup" aria-label="Сторона появления новых фишек">
+              <input id="spawn-top" type="radio" name="spawn" value="top" checked><label class="direction-top" for="spawn-top"><b>↓</b><span>Сверху</span></label>
+              <input id="spawn-left" type="radio" name="spawn" value="left"><label class="direction-left" for="spawn-left"><b>→</b><span>Слева</span></label>
+              <div class="direction-center" aria-hidden="true">◆</div>
+              <input id="spawn-right" type="radio" name="spawn" value="right"><label class="direction-right" for="spawn-right"><b>←</b><span>Справа</span></label>
+              <input id="spawn-bottom" type="radio" name="spawn" value="bottom"><label class="direction-bottom" for="spawn-bottom"><b>↑</b><span>Снизу</span></label>
+            </div>
+            <p class="section-note">Направление стрелки показывает движение фишек внутрь поля.</p>
+          </div>
+          <div id="modifiers"></div>
+          <label class="check-row">
+            <input id="manual-toggle" type="checkbox">
+            <span><b>Своя стартовая раскладка</b><small>Откроет редактор поля. Выберите фишку и закрасьте клетки.</small></span>
+          </label>
+          <div id="manual-panel" class="manual-panel">
+            <div class="brushes" id="brushes"></div>
+            <div class="manual-grid" id="manual-grid" aria-label="Редактор стартовой раскладки"></div>
+            <button class="ghost-button" id="fill-manual" type="button">Заполнить по seed</button>
+          </div>
+        </section>
+
+        <button class="primary-button" id="generate" type="button">Сгенерировать и проиграть</button>
+        <div class="error" id="error" role="alert"></div>
+      </aside>
+
+      <section class="content">
+        <article class="preview-card">
+          <header class="preview-head">
+            <div><h2>Превью геймплея</h2><p id="scenario-subtitle">Настройте параметры и запустите генерацию</p></div>
+            <div class="playback-controls">
+              <button class="small-button" id="prev-frame" type="button" title="Предыдущий этап">←</button>
+              <button class="small-button" id="play-pause" type="button">Пауза</button>
+              <button class="small-button" id="next-frame" type="button" title="Следующий этап">→</button>
+              <button class="small-button" id="replay" type="button">Сначала</button>
+              <span class="manual-swap-message" id="manual-swap-message" role="status" hidden>Этот обмен не создаёт совпадений.</span>
+              <button class="small-button" id="finish-manual" type="button" hidden>Завершить партию</button>
+            </div>
+          </header>
+          <div class="stage-area">
+            <div class="board-shell"><svg id="board" class="board-glow" viewBox="0 0 700 700" role="img" aria-label="Поле match-3"></svg></div>
+            <div class="now-card">
+              <div class="eyebrow" id="frame-index">Этап 0 / 0</div>
+              <h3 id="frame-title">Готово к генерации</h3>
+              <p id="frame-note">Все элементы рисуются встроенными SVG-фигурами — дополнительные картинки для первой версии не нужны.</p>
+              <div class="metrics">
+                <div class="metric"><span>Seed</span><strong id="metric-seed">—</strong></div>
+                <div class="metric"><span>Динамика</span><strong id="metric-speed">—</strong></div>
+                <div class="metric"><span>Профиль</span><strong id="metric-profile">—</strong></div>
+                <div class="metric"><span>Появление</span><strong id="metric-spawn">—</strong></div>
+              </div>
+              <div class="progress" aria-label="Прогресс сценария"><div id="progress-bar"></div></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="timeline-card">
+          <header class="timeline-head">
+            <div><h2>Все этапы</h2><p>Нажмите на карточку для просмотра или скачайте SVG.</p></div>
+            <button class="small-button" id="download-all" type="button">Скачать все SVG</button>
+          </header>
+          <div id="timeline" class="empty-timeline">После генерации здесь появятся этапы сценария.</div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const CELL = 92;
+      const PAD = 28;
+      const MAX_MOVES = 48;
+      const PROJECT_KEY_PREFIX = 'M3S1.';
+      const LEGACY_PROJECT_KEY_PREFIX = 'M3L1.';
+      const DEFAULT_COLORS = ['#ff6b78', '#ffc857', '#68e39b', '#5cc8ff', '#a78bfa', '#ff8fd8', '#ff9f43', '#4f6cff'];
+      const PROFILE_NAMES = { empire: 'Empire & Puzzles', masters: 'Match Masters', universal: 'Универсальный' };
+      const BIG_MATCH_FREQUENCIES = [
+        { label: 'Никогда', chance: 0 },
+        { label: 'Иногда', chance: .28 },
+        { label: 'Часто', chance: .58 },
+        { label: 'Почти каждый ход', chance: .88 },
+        { label: 'Каждый ход', chance: 1 }
+      ];
+      const SPAWN_DIRECTIONS = {
+        top: { label: 'Сверху ↓', note: 'Новые фишки входят сверху' },
+        bottom: { label: 'Снизу ↑', note: 'Новые фишки входят снизу' },
+        left: { label: 'Слева →', note: 'Новые фишки входят слева' },
+        right: { label: 'Справа ←', note: 'Новые фишки входят справа' }
+      };
+      const state = {
+        colors: [...DEFAULT_COLORS],
+        brush: 0,
+        manualBoard: null,
+        frames: [],
+        frame: 0,
+        playing: false,
+        timer: null,
+        startedAt: 0,
+        bigMatches: true,
+        bigMatchLevel: 1,
+        bonusActivation: 'never',
+        empireCrystal: true,
+        empireDragon: true,
+        mastersExtraMove: false,
+        mastersTwoPlayers: false,
+        mastersMovesPerTurn: 3,
+        mastersArrow: true,
+        mastersLightning: true,
+        mastersBomb: true,
+        hasScenario: false,
+        copyReady: false,
+        manualGame: null,
+        manualAnimatedFrame: -1,
+        timelineObserver: null,
+        selectedCell: null,
+        config: null
+      };
+
+      const $ = (selector) => document.querySelector(selector);
+      const $$ = (selector) => [...document.querySelectorAll(selector)];
+      const cloneBoard = (board) => board.map(row => row.map(cell => cell ? { ...cell } : null));
+      const coordKey = (r, c) => `${r}:${c}`;
+      const escapeXml = (value) => String(value).replace(/[<>&'\"]/g, ch => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;', "'":'&apos;', '\"':'&quot;' }[ch]));
+
+      function pluralRu(count, one, few, many) {
+        const lastTwo = count % 100;
+        const last = count % 10;
+        if (lastTwo >= 11 && lastTwo <= 14) return many;
+        if (last === 1) return one;
+        if (last >= 2 && last <= 4) return few;
+        return many;
+      }
+
+      function hashSeed(text) {
+        let h = 2166136261;
+        for (let i = 0; i < text.length; i++) {
+          h ^= text.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return h >>> 0;
+      }
+
+      function encodeProjectKey(config, suppliedBoard) {
+        const bytes = [];
+        const seedBytes = [...new TextEncoder().encode(config.seed)];
+        if (!seedBytes.length || seedBytes.length > 256) throw new Error('Seed должен занимать от 1 до 256 байт в UTF-8.');
+        writeVarint(bytes, seedBytes.length);
+        bytes.push(...seedBytes);
+        bytes.push(['empire', 'masters', 'universal'].indexOf(config.profile), config.cols, config.rows, config.typeCount);
+        writeVarint(bytes, config.duration);
+        const flags = Number(config.cascades) | Number(config.bigMatches) << 1 | Number(config.empireCrystal) << 2 | Number(config.empireDragon) << 3 | Number(Boolean(suppliedBoard)) << 4 | 128;
+        bytes.push(config.speed, ['top', 'bottom', 'left', 'right'].indexOf(config.spawn), flags, config.bigMatchLevel);
+        bytes.push(config.gameplay === 'manual' ? 1 : 0, ['never', 'rare', 'immediate'].indexOf(config.bonusActivation));
+        const extensionFlags = 128 | 64 | 32
+          | Number(config.mastersExtraMove !== false)
+          | Number(Boolean(config.mastersTwoPlayers)) << 1
+          | Number(config.mastersArrow !== false) << 2
+          | Number(config.mastersLightning !== false) << 3
+          | Number(config.mastersBomb !== false) << 4;
+        bytes.push(extensionFlags);
+        config.colors.forEach(color => {
+          const value = Number.parseInt(color.slice(1), 16);
+          bytes.push(value >> 16 & 255, value >> 8 & 255, value & 255);
+        });
+        if (suppliedBoard) {
+          let packed = 0, bitCount = 0;
+          suppliedBoard.flat().forEach(cell => {
+            packed |= cell.type << bitCount;
+            bitCount += 3;
+            while (bitCount >= 8) {
+              bytes.push(packed & 255);
+              packed >>= 8;
+              bitCount -= 8;
+            }
+          });
+          if (bitCount) bytes.push(packed & 255);
+        }
+        writeVarint(bytes, config.mastersMovesPerTurn);
+        const checksum = checksum16(bytes);
+        bytes.push(checksum >> 8, checksum & 255);
+        let binary = '';
+        bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+        return PROJECT_KEY_PREFIX + btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+      }
+
+      function writeVarint(bytes, value) {
+        do {
+          const remainder = value % 128;
+          value = Math.floor(value / 128);
+          bytes.push(remainder | (value ? 128 : 0));
+        } while (value);
+      }
+
+      function checksum16(bytes) {
+        let hash = 2166136261;
+        bytes.forEach(byte => { hash = Math.imul(hash ^ byte, 16777619); });
+        return hash >>> 0 & 65535;
+      }
+
+      function validateProjectPayload(payload) {
+        const integerIn = (number, min, max) => Number.isSafeInteger(number) && number >= min && number <= max;
+        if (payload.version !== 1 || typeof payload.seed !== 'string' || !payload.seed || payload.seed.length > 256) throw new Error();
+        if (payload.profile === 'merge') payload.profile = 'empire';
+        if (payload.profile === 'candy') payload.profile = 'universal';
+        if (!['empire', 'masters', 'universal'].includes(payload.profile)) throw new Error();
+        if (!integerIn(payload.cols, 3, 12) || !integerIn(payload.rows, 3, 12) || !integerIn(payload.typeCount, 3, 8)) throw new Error();
+        if (!integerIn(payload.duration, 1, Number.MAX_SAFE_INTEGER) || !integerIn(payload.speed, 1, 10)) throw new Error();
+        if (!['top', 'bottom', 'left', 'right'].includes(payload.spawn)) throw new Error();
+        if (!Array.isArray(payload.colors) || payload.colors.length !== payload.typeCount || payload.colors.some(color => !/^#[0-9a-f]{6}$/i.test(color))) throw new Error();
+        if (![payload.cascades, payload.bigMatches].every(value => typeof value === 'boolean')) throw new Error();
+        payload.gameplay = payload.gameplay || 'auto';
+        payload.bonusActivation = payload.bonusActivation || 'immediate';
+        payload.empireCrystal = payload.empireCrystal ?? true;
+        payload.empireDragon = payload.empireDragon ?? true;
+        payload.mastersExtraMove = payload.mastersExtraMove ?? true;
+        payload.mastersTwoPlayers = payload.mastersTwoPlayers ?? false;
+        payload.mastersMovesPerTurn = payload.mastersMovesPerTurn ?? 3;
+        payload.mastersArrow = payload.mastersArrow ?? true;
+        payload.mastersLightning = payload.mastersLightning ?? true;
+        payload.mastersBomb = payload.mastersBomb ?? true;
+        if (!['auto', 'manual'].includes(payload.gameplay) || !['never', 'rare', 'immediate'].includes(payload.bonusActivation)) throw new Error();
+        if (![payload.empireCrystal, payload.empireDragon, payload.mastersExtraMove, payload.mastersTwoPlayers, payload.mastersArrow, payload.mastersLightning, payload.mastersBomb].every(value => typeof value === 'boolean')) throw new Error();
+        if (!integerIn(payload.mastersMovesPerTurn, 1, Number.MAX_SAFE_INTEGER)) throw new Error();
+        if (!payload.mastersTwoPlayers) payload.mastersExtraMove = false;
+        if (!integerIn(payload.bigMatchLevel, 0, 4)) throw new Error();
+        payload.bigMatchLevel = payload.bigMatches ? payload.bigMatchLevel : 0;
+        payload.bigMatches = payload.bigMatchLevel > 0;
+        if (payload.manual !== null && (!Array.isArray(payload.manual) || payload.manual.length !== payload.rows || payload.manual.some(row => !Array.isArray(row) || row.length !== payload.cols || row.some(type => !integerIn(type, 0, payload.typeCount - 1))))) throw new Error();
+        return payload;
+      }
+
+      function decodeShortProjectKey(value) {
+        const encoded = value.slice(PROJECT_KEY_PREFIX.length).replace(/-/g, '+').replace(/_/g, '/');
+        const binary = atob(encoded + '='.repeat((4 - encoded.length % 4) % 4));
+        const allBytes = [...binary].map(ch => ch.charCodeAt(0));
+        if (allBytes.length < 14) throw new Error();
+        const expectedChecksum = allBytes[allBytes.length - 2] << 8 | allBytes[allBytes.length - 1];
+        const bytes = allBytes.slice(0, -2);
+        if (checksum16(bytes) !== expectedChecksum) throw new Error();
+        let offset = 0;
+        const readByte = () => {
+          if (offset >= bytes.length) throw new Error();
+          return bytes[offset++];
+        };
+        const readVarint = () => {
+          let result = 0, multiplier = 1, byte;
+          do {
+            byte = readByte();
+            result += (byte & 127) * multiplier;
+            multiplier *= 128;
+            if (!Number.isSafeInteger(result) || multiplier > Number.MAX_SAFE_INTEGER * 128) throw new Error();
+          } while (byte & 128);
+          return result;
+        };
+        const seedLength = readVarint();
+        if (seedLength < 1 || seedLength > 256 || offset + seedLength > bytes.length) throw new Error();
+        const seed = new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(bytes.slice(offset, offset + seedLength)));
+        offset += seedLength;
+        const storedProfile = readByte();
+        const profile = ['empire', 'masters', 'universal', 'candy'][storedProfile];
+        const cols = readByte(), rows = readByte(), typeCount = readByte();
+        const duration = readVarint();
+        const speed = readByte();
+        const spawn = ['top', 'bottom', 'left', 'right'][readByte()];
+        const flags = readByte();
+        const bigMatchLevel = readByte();
+        const gameplay = flags & 128 ? ['auto', 'manual'][readByte()] : 'auto';
+        const bonusActivation = flags & 128 ? ['never', 'rare', 'immediate'][readByte()] : 'immediate';
+        const extensionFlags = flags & 128 ? readByte() : 0;
+        const hasEmpireToggles = Boolean(extensionFlags & 128) || (!(flags & 128) && profile === 'empire');
+        const hasMastersSettings = Boolean(extensionFlags & 64);
+        const hasMastersSpecialSettings = Boolean(extensionFlags & 32);
+        const colors = [];
+        for (let index = 0; index < typeCount; index++) colors.push(`#${((readByte() << 16) | (readByte() << 8) | readByte()).toString(16).padStart(6, '0')}`);
+        let manual = null;
+        if (flags & 16) {
+          manual = Array.from({ length: rows }, () => Array(cols));
+          let packed = 0, bitCount = 0;
+          for (let index = 0; index < rows * cols; index++) {
+            while (bitCount < 3) {
+              packed |= readByte() << bitCount;
+              bitCount += 8;
+            }
+            manual[Math.floor(index / cols)][index % cols] = packed & 7;
+            packed >>= 3;
+            bitCount -= 3;
+          }
+        }
+        const mastersMovesPerTurn = offset < bytes.length ? readVarint() : 3;
+        if (offset !== bytes.length) throw new Error();
+        return validateProjectPayload({
+          version: 1, seed, profile, cols, rows, typeCount, colors, duration, speed, spawn,
+          cascades: Boolean(flags & 1), bigMatches: Boolean(flags & 2), bigMatchLevel, manual,
+          gameplay, bonusActivation,
+          empireCrystal: hasEmpireToggles ? Boolean(flags & 4) : true,
+          empireDragon: hasEmpireToggles ? Boolean(flags & 8) : true,
+          mastersExtraMove: hasMastersSettings ? Boolean(extensionFlags & 1) : true,
+          mastersTwoPlayers: hasMastersSettings ? Boolean(extensionFlags & 2) : false,
+          mastersMovesPerTurn,
+          mastersArrow: hasMastersSpecialSettings ? Boolean(extensionFlags & 4) : true,
+          mastersLightning: hasMastersSpecialSettings ? Boolean(extensionFlags & 8) : true,
+          mastersBomb: hasMastersSpecialSettings ? Boolean(extensionFlags & 16) : true
+        });
+      }
+
+      function decodeProjectKey(value) {
+        if (!value.startsWith(PROJECT_KEY_PREFIX) && !value.startsWith(LEGACY_PROJECT_KEY_PREFIX)) return null;
+        try {
+          if (value.startsWith(PROJECT_KEY_PREFIX)) return decodeShortProjectKey(value);
+          const encoded = value.slice(LEGACY_PROJECT_KEY_PREFIX.length).replace(/-/g, '+').replace(/_/g, '/');
+          const binary = atob(encoded + '='.repeat((4 - encoded.length % 4) % 4));
+          const payload = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, ch => ch.charCodeAt(0))));
+          return validateProjectPayload(payload);
+        } catch {
+          throw new Error('Ключ проекта повреждён или создан в неподдерживаемой версии.');
+        }
+      }
+
+      function seedEntropy(value = $('#seed').value.trim()) {
+        return decodeProjectKey(value)?.seed || value;
+      }
+
+      function mulberry32(seed) {
+        return function random() {
+          let t = seed += 0x6D2B79F5;
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function randomSeed() {
+        const bytes = new Uint32Array(2);
+        crypto.getRandomValues(bytes);
+        return `M3-${bytes[0].toString(36).toUpperCase()}-${bytes[1].toString(36).toUpperCase()}`;
+      }
+
+      function makeCell(type, special = null) { return { type, special }; }
+
+      function generateStableBoard(rng, typeCount, rows, cols) {
+        const board = Array.from({ length: rows }, () => Array(cols).fill(null));
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const forbidden = new Set();
+            if (c >= 2 && board[r][c - 1].type === board[r][c - 2].type) forbidden.add(board[r][c - 1].type);
+            if (r >= 2 && board[r - 1][c].type === board[r - 2][c].type) forbidden.add(board[r - 1][c].type);
+            const allowed = Array.from({ length: typeCount }, (_, i) => i).filter(i => !forbidden.has(i));
+            board[r][c] = makeCell(allowed[Math.floor(rng() * allowed.length)]);
+          }
+        }
+        if (!findValidSwaps(board).length) return generateStableBoard(rng, typeCount, rows, cols);
+        return board;
+      }
+
+      function findMatches(board) {
+        const rows = board.length;
+        const cols = board[0].length;
+        const groups = [];
+        for (let r = 0; r < rows; r++) {
+          let start = 0;
+          for (let c = 1; c <= cols; c++) {
+            const same = c < cols && board[r][c] && board[r][start] && board[r][c].type === board[r][start].type;
+            if (!same) {
+              if (board[r][start] && c - start >= 3) groups.push({ axis: 'row', type: board[r][start].type, cells: Array.from({ length: c - start }, (_, i) => [r, start + i]) });
+              start = c;
+            }
+          }
+        }
+        for (let c = 0; c < cols; c++) {
+          let start = 0;
+          for (let r = 1; r <= rows; r++) {
+            const same = r < rows && board[r][c] && board[start][c] && board[r][c].type === board[start][c].type;
+            if (!same) {
+              if (board[start][c] && r - start >= 3) groups.push({ axis: 'col', type: board[start][c].type, cells: Array.from({ length: r - start }, (_, i) => [start + i, c]) });
+              start = r;
+            }
+          }
+        }
+        const keys = new Set(groups.flatMap(group => group.cells.map(([r, c]) => coordKey(r, c))));
+        const combos = [];
+        groups.forEach(group => {
+          const groupKeys = new Set(group.cells.map(([r, c]) => coordKey(r, c)));
+          const connected = combos.filter(combo => [...groupKeys].some(key => combo.keys.has(key)));
+          if (!connected.length) {
+            combos.push({ type: group.type, groups: [group], keys: groupKeys });
+            return;
+          }
+          const combo = connected[0];
+          combo.groups.push(group);
+          groupKeys.forEach(key => combo.keys.add(key));
+          connected.slice(1).forEach(other => {
+            other.groups.forEach(item => combo.groups.push(item));
+            other.keys.forEach(key => combo.keys.add(key));
+            combos.splice(combos.indexOf(other), 1);
+          });
+        });
+        combos.forEach(combo => {
+          combo.size = combo.keys.size;
+          combo.maxLine = Math.max(...combo.groups.map(group => group.cells.length));
+          combo.intersection = combo.groups.length > 1;
+        });
+        return { groups, combos, keys, intersection: combos.some(combo => combo.intersection) };
+      }
+
+      function swapCells(board, a, b) {
+        const temp = board[a[0]][a[1]];
+        board[a[0]][a[1]] = board[b[0]][b[1]];
+        board[b[0]][b[1]] = temp;
+      }
+
+      function swapCreatesMatch(matches, a, b) {
+        const aKey = coordKey(...a);
+        const bKey = coordKey(...b);
+        return matches.combos.some(combo => combo.keys.has(aKey) || combo.keys.has(bKey));
+      }
+
+      function findValidSwaps(board, allowSpecialPairs = false) {
+        const rows = board.length;
+        const cols = board[0].length;
+        const swaps = [];
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            for (const [dr, dc] of [[0, 1], [1, 0]]) {
+              const nr = r + dr, nc = c + dc;
+              if (nr >= rows || nc >= cols || !board[r][c] || !board[nr][nc]) continue;
+              const a = [r, c], b = [nr, nc];
+              const specialPair = allowSpecialPairs && Boolean(board[r][c].special && board[nr][nc].special);
+              if (!specialPair && board[r][c].type === board[nr][nc].type) continue;
+              swapCells(board, a, b);
+              const matched = swapCreatesMatch(findMatches(board), a, b);
+              swapCells(board, a, b);
+              if (matched || specialPair) swaps.push({ a, b });
+            }
+          }
+        }
+        return swaps;
+      }
+
+      function shuffled(items, rng) {
+        const result = [...items];
+        for (let i = result.length - 1; i > 0; i--) {
+          const j = Math.floor(rng() * (i + 1));
+          [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+      }
+
+      function scoreSwap(board, swap) {
+        swapCells(board, swap.a, swap.b);
+        const score = findMatches(board).keys.size;
+        swapCells(board, swap.a, swap.b);
+        return score;
+      }
+
+      function planBigMatch(board, rng, config) {
+        const rows = board.length;
+        const cols = board[0].length;
+        const crossPlans = [];
+        const linePlans = [];
+        const fallbackPlans = [];
+
+        if (cols >= 5) {
+          for (let r = 0; r < rows; r++) {
+            for (let start = 0; start <= cols - 5; start++) {
+              const gap = start + 2;
+              if (r > 0) linePlans.push({ axis: 'row', fixed: r, start, length: 5, gap, source: [r - 1, gap], extra: [] });
+              if (r + 1 < rows) linePlans.push({ axis: 'row', fixed: r, start, length: 5, gap, source: [r + 1, gap], extra: [] });
+              if (r > 0 && r + 2 < rows) crossPlans.push({ axis: 'row', fixed: r, start, length: 5, gap, source: [r - 1, gap], extra: [[r + 1, gap], [r + 2, gap]] });
+              if (r + 1 < rows && r - 2 >= 0) crossPlans.push({ axis: 'row', fixed: r, start, length: 5, gap, source: [r + 1, gap], extra: [[r - 1, gap], [r - 2, gap]] });
+            }
+          }
+        }
+        if (rows >= 5) {
+          for (let c = 0; c < cols; c++) {
+            for (let start = 0; start <= rows - 5; start++) {
+              const gap = start + 2;
+              if (c > 0) linePlans.push({ axis: 'col', fixed: c, start, length: 5, gap, source: [gap, c - 1], extra: [] });
+              if (c + 1 < cols) linePlans.push({ axis: 'col', fixed: c, start, length: 5, gap, source: [gap, c + 1], extra: [] });
+              if (c > 0 && c + 2 < cols) crossPlans.push({ axis: 'col', fixed: c, start, length: 5, gap, source: [gap, c - 1], extra: [[gap, c + 1], [gap, c + 2]] });
+              if (c + 1 < cols && c - 2 >= 0) crossPlans.push({ axis: 'col', fixed: c, start, length: 5, gap, source: [gap, c + 1], extra: [[gap, c - 1], [gap, c - 2]] });
+            }
+          }
+        }
+        if (!linePlans.length) {
+          if (cols >= 4) {
+            for (let r = 0; r < rows; r++) for (let start = 0; start <= cols - 4; start++) {
+              const gap = start + 1;
+              if (r > 0) fallbackPlans.push({ axis: 'row', fixed: r, start, length: 4, gap, source: [r - 1, gap], extra: [] });
+              if (r + 1 < rows) fallbackPlans.push({ axis: 'row', fixed: r, start, length: 4, gap, source: [r + 1, gap], extra: [] });
+            }
+          }
+          if (rows >= 4) {
+            for (let c = 0; c < cols; c++) for (let start = 0; start <= rows - 4; start++) {
+              const gap = start + 1;
+              if (c > 0) fallbackPlans.push({ axis: 'col', fixed: c, start, length: 4, gap, source: [gap, c - 1], extra: [] });
+              if (c + 1 < cols) fallbackPlans.push({ axis: 'col', fixed: c, start, length: 4, gap, source: [gap, c + 1], extra: [] });
+            }
+          }
+        }
+
+        const groups = config.bigMatchLevel >= 3
+          ? [crossPlans, linePlans, fallbackPlans]
+          : config.bigMatchLevel === 2 && rng() < .28
+            ? [crossPlans, linePlans, fallbackPlans]
+            : [linePlans, crossPlans, fallbackPlans];
+
+        for (const plans of groups) {
+          for (const plan of shuffled(plans, rng)) {
+            for (const targetType of shuffled(Array.from({ length: config.typeCount }, (_, i) => i), rng)) {
+              const candidate = cloneBoard(board);
+              const gapType = (targetType + 1 + Math.floor(rng() * (config.typeCount - 1))) % config.typeCount;
+              for (let i = 0; i < plan.length; i++) {
+                const r = plan.axis === 'row' ? plan.fixed : plan.start + i;
+                const c = plan.axis === 'row' ? plan.start + i : plan.fixed;
+                candidate[r][c] = makeCell((plan.axis === 'row' ? c : r) === plan.gap ? gapType : targetType);
+              }
+              candidate[plan.source[0]][plan.source[1]] = makeCell(targetType);
+              plan.extra.forEach(([r, c]) => { candidate[r][c] = makeCell(targetType); });
+              if (findMatches(candidate).keys.size) continue;
+              const destination = plan.axis === 'row' ? [plan.fixed, plan.gap] : [plan.gap, plan.fixed];
+              const swap = { a: plan.source, b: destination };
+              swapCells(candidate, swap.a, swap.b);
+              const result = findMatches(candidate);
+              const size = result.combos.find(combo => combo.keys.has(coordKey(destination[0], destination[1])))?.size || 0;
+              swapCells(candidate, swap.a, swap.b);
+              const expected = plan.extra.length ? 7 : plan.length;
+              if (size >= expected) return { board: candidate, swap, size };
+            }
+          }
+        }
+        return null;
+      }
+
+      function isMatchMastersBombCombo(combo) {
+        for (const rowGroup of combo.groups.filter(group => group.axis === 'row')) {
+          for (const colGroup of combo.groups.filter(group => group.axis === 'col')) {
+            const intersection = rowGroup.cells.find(([r, c]) => colGroup.cells.some(([rr, cc]) => r === rr && c === cc));
+            if (!intersection) continue;
+            const rowIndex = rowGroup.cells.findIndex(([r, c]) => r === intersection[0] && c === intersection[1]);
+            const colIndex = colGroup.cells.findIndex(([r, c]) => r === intersection[0] && c === intersection[1]);
+            const rowEnd = rowIndex === 0 || rowIndex === rowGroup.cells.length - 1;
+            const colEnd = colIndex === 0 || colIndex === colGroup.cells.length - 1;
+            if (rowEnd || colEnd) return true;
+          }
+        }
+        return false;
+      }
+
+      function chooseSpecials(matches, config) {
+        if (config.profile === 'masters') {
+          return matches.combos.flatMap(combo => {
+            if (isMatchMastersBombCombo(combo)) return config.mastersBomb ? [{ kind: 'masters-bomb', combo }] : [];
+            if (combo.maxLine >= 5) return config.mastersLightning ? [{ kind: 'masters-lightning', combo }] : [];
+            if (combo.maxLine === 4 && config.mastersArrow) {
+              const line = combo.groups.find(group => group.cells.length === 4);
+              return [{ kind: line.axis === 'col' ? 'masters-arrow-col' : 'masters-arrow-row', combo }];
+            }
+            return [];
+          });
+        }
+        if (config.profile !== 'empire') return [];
+        return matches.combos.flatMap(combo => {
+          if (combo.maxLine >= 5 || combo.intersection) return config.empireCrystal ? [{ kind: 'crystal', combo }] : [];
+          if (combo.maxLine === 4 && config.empireDragon) {
+            const line = combo.groups.find(group => group.cells.length === 4);
+            return [{ kind: line.axis === 'col' ? 'dragon-col' : 'dragon-row', combo }];
+          }
+          return [];
+        });
+      }
+
+      function matchTitle(matches, titlePrefix) {
+        const sizes = matches.combos.map(combo => combo.size).sort((a, b) => b - a);
+        if (sizes.length === 1) return `${titlePrefix}: ${sizes[0] >= 4 ? 'БОЛЬШОЙ МАТЧ' : 'МАТЧ'} ×${sizes[0]}`;
+        const lastTwo = sizes.length % 100;
+        const last = sizes.length % 10;
+        const word = lastTwo >= 11 && lastTwo <= 14 ? 'МАТЧЕЙ' : last === 1 ? 'МАТЧ' : last >= 2 && last <= 4 ? 'МАТЧА' : 'МАТЧЕЙ';
+        return `${titlePrefix}: ${sizes.length} ${word} — ${sizes.map(size => `×${size}`).join(' + ')}`;
+      }
+
+      function specialLabel(special) {
+        if (special === 'crystal') return 'Power Shard';
+        if (special?.startsWith('dragon')) return 'Dragon Shield';
+        if (special?.startsWith('masters-arrow')) return 'Special Arrow';
+        if (special === 'masters-lightning') return 'Lightning';
+        if (special === 'masters-bomb') return 'Bomb';
+        return 'Dragon Shield';
+      }
+
+      function specialEffectKeys(board, r, c, rng) {
+        const cell = board[r]?.[c];
+        const clear = new Set([coordKey(r, c)]);
+        if (!cell?.special) return clear;
+        if (cell.special === 'crystal') {
+          board.forEach((row, rr) => row.forEach((candidate, cc) => { if (candidate?.type === cell.type) clear.add(coordKey(rr, cc)); }));
+        } else if (cell.special === 'dragon-row' || cell.special === 'dragon-col') {
+          [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]].forEach(([rr, cc]) => {
+            if (board[rr]?.[cc]) clear.add(coordKey(rr, cc));
+          });
+        } else if (cell.special === 'masters-arrow-row') {
+          for (let cc = 0; cc < board[0].length; cc++) if (board[r][cc]) clear.add(coordKey(r, cc));
+        } else if (cell.special === 'masters-arrow-col') {
+          for (let rr = 0; rr < board.length; rr++) if (board[rr][c]) clear.add(coordKey(rr, c));
+        } else if (cell.special === 'masters-lightning') {
+          const candidates = [];
+          board.forEach((row, rr) => row.forEach((candidate, cc) => {
+            if (candidate && (rr !== r || cc !== c)) candidates.push(coordKey(rr, cc));
+          }));
+          shuffled(candidates, rng).slice(0, 13).forEach(key => clear.add(key));
+        } else if (cell.special === 'masters-bomb') {
+          for (let rr = Math.max(0, r - 1); rr <= Math.min(board.length - 1, r + 1); rr++) {
+            for (let cc = Math.max(0, c - 1); cc <= Math.min(board[0].length - 1, c + 1); cc++) if (board[rr][cc]) clear.add(coordKey(rr, cc));
+          }
+        }
+        return clear;
+      }
+
+      function expandSpecialClear(board, initialKeys, rng) {
+        const clear = new Set(initialKeys);
+        const queue = [...clear];
+        const triggered = new Set();
+        const labels = [];
+        while (queue.length) {
+          const key = queue.shift();
+          if (triggered.has(key)) continue;
+          const [r, c] = key.split(':').map(Number);
+          const cell = board[r]?.[c];
+          if (!cell?.special) continue;
+          triggered.add(key);
+          labels.push(specialLabel(cell.special));
+          specialEffectKeys(board, r, c, rng).forEach(effectKey => {
+            if (!clear.has(effectKey)) {
+              clear.add(effectKey);
+              queue.push(effectKey);
+            }
+          });
+        }
+        return { clear, labels };
+      }
+
+      function activateSpecial(frames, board, rng, config, titlePrefix, force = false) {
+        if (config.bonusActivation === 'never') return board;
+        if (!force && (config.bonusActivation !== 'rare' || rng() >= .3)) return board;
+        const specials = [];
+        board.forEach((row, r) => row.forEach((cell, c) => { if (cell?.special) specials.push([r, c]); }));
+        if (!specials.length) return board;
+        const [r, c] = specials[Math.floor(rng() * specials.length)];
+        const cell = board[r][c];
+        const activation = expandSpecialClear(board, new Set([coordKey(r, c)]), rng);
+        const clear = activation.clear;
+        const label = specialLabel(cell.special);
+        addFrame(frames, board, 'bonus', `${titlePrefix}: активация бонуса`, `${label}: убрано фишек ${clear.size}`, {
+          matches: [...clear], bonus: `Активированы: ${activation.labels.join(' + ')}`, bigMatch: true
+        });
+        const collapsed = collapseAndFill(board, clear, null, rng, config);
+        board = collapsed.board;
+        addFrame(frames, board, 'refill', `${titlePrefix}: заполнение после бонуса`, SPAWN_DIRECTIONS[config.spawn].note, {
+          spawned: [...collapsed.spawned], motion: collapsed.motion
+        });
+        return board;
+      }
+
+      function resolveSpecialSwap(frames, board, a, b, rng, config, titlePrefix) {
+        const activation = expandSpecialClear(board, new Set([coordKey(...a), coordKey(...b)]), rng);
+        addFrame(frames, board, 'bonus', `${titlePrefix}: комбинация спецфишек`, `Активированы: ${activation.labels.join(' + ')} · убрано фишек: ${activation.clear.size}`, {
+          matches: [...activation.clear], bonus: `Комбинация: ${activation.labels.join(' + ')}`, bigMatch: true
+        });
+        const collapsed = collapseAndFill(board, activation.clear, null, rng, config);
+        addFrame(frames, collapsed.board, 'refill', `${titlePrefix}: заполнение после комбинации`, SPAWN_DIRECTIONS[config.spawn].note, {
+          spawned: [...collapsed.spawned], motion: collapsed.motion
+        });
+        return collapsed.board;
+      }
+
+      function collapseAndFill(board, clearKeys, keepKeys, rng, config) {
+        const rows = board.length;
+        const cols = board[0].length;
+        const next = cloneBoard(board);
+        clearKeys.forEach(key => {
+          const [r, c] = key.split(':').map(Number);
+          if (!keepKeys?.has(key)) next[r][c] = null;
+        });
+        const spawned = new Set();
+        const motion = {};
+        if (config.spawn === 'top' || config.spawn === 'bottom') {
+          for (let c = 0; c < cols; c++) {
+            const survivors = [];
+            for (let r = 0; r < rows; r++) if (next[r][c]) survivors.push({ cell: next[r][c], row: r });
+            if (config.spawn === 'top') {
+              const missing = rows - survivors.length;
+              for (let r = 0; r < missing; r++) {
+                next[r][c] = makeCell(Math.floor(rng() * config.typeCount));
+                spawned.add(coordKey(r, c));
+                motion[coordKey(r, c)] = { dx: 0, dy: -(r + 1) * CELL, spawned: true };
+              }
+              survivors.forEach(({ cell, row: oldRow }, i) => {
+                const newRow = missing + i;
+                next[newRow][c] = cell;
+                if (oldRow !== newRow) motion[coordKey(newRow, c)] = { dx: 0, dy: (oldRow - newRow) * CELL, spawned: false };
+              });
+            } else {
+              survivors.forEach(({ cell, row: oldRow }, newRow) => {
+                next[newRow][c] = cell;
+                if (oldRow !== newRow) motion[coordKey(newRow, c)] = { dx: 0, dy: (oldRow - newRow) * CELL, spawned: false };
+              });
+              for (let r = survivors.length; r < rows; r++) {
+                next[r][c] = makeCell(Math.floor(rng() * config.typeCount));
+                spawned.add(coordKey(r, c));
+                motion[coordKey(r, c)] = { dx: 0, dy: (rows - r) * CELL, spawned: true };
+              }
+            }
+          }
+        } else {
+          for (let r = 0; r < rows; r++) {
+            const survivors = [];
+            for (let c = 0; c < cols; c++) if (next[r][c]) survivors.push({ cell: next[r][c], col: c });
+            if (config.spawn === 'left') {
+              const missing = cols - survivors.length;
+              for (let c = 0; c < missing; c++) {
+                next[r][c] = makeCell(Math.floor(rng() * config.typeCount));
+                spawned.add(coordKey(r, c));
+                motion[coordKey(r, c)] = { dx: -(c + 1) * CELL, dy: 0, spawned: true };
+              }
+              survivors.forEach(({ cell, col: oldCol }, i) => {
+                const newCol = missing + i;
+                next[r][newCol] = cell;
+                if (oldCol !== newCol) motion[coordKey(r, newCol)] = { dx: (oldCol - newCol) * CELL, dy: 0, spawned: false };
+              });
+            } else {
+              survivors.forEach(({ cell, col: oldCol }, newCol) => {
+                next[r][newCol] = cell;
+                if (oldCol !== newCol) motion[coordKey(r, newCol)] = { dx: (oldCol - newCol) * CELL, dy: 0, spawned: false };
+              });
+              for (let c = survivors.length; c < cols; c++) {
+                next[r][c] = makeCell(Math.floor(rng() * config.typeCount));
+                spawned.add(coordKey(r, c));
+                motion[coordKey(r, c)] = { dx: (cols - c) * CELL, dy: 0, spawned: true };
+              }
+            }
+          }
+        }
+        return { board: next, spawned, motion };
+      }
+
+      function addFrame(frames, board, kind, title, note, extras = {}) {
+        frames.push({ board: cloneBoard(board), kind, title, note, matches: [], spawned: [], motion: {}, swap: null, bonus: null, ...extras });
+      }
+
+      function grantsMastersExtraMove(matches, config) {
+        return config.profile === 'masters' && config.mastersTwoPlayers && config.mastersExtraMove && matches.combos.some(combo => combo.size >= 4);
+      }
+
+      function playerTurnPrefix(config, player, label) {
+        return config.profile === 'masters' && config.mastersTwoPlayers ? `Игрок ${player} · ${label}` : label;
+      }
+
+      function resolveMatch(frames, board, matches, rng, config, titlePrefix, swap) {
+        const isBigMatch = matches.combos.some(combo => combo.size >= 4);
+        const specials = chooseSpecials(matches, config);
+        const naturalActivation = expandSpecialClear(board, matches.keys, rng);
+        const bonusParts = [];
+        if (grantsMastersExtraMove(matches, config)) bonusParts.push('Дополнительный ход за отдельный матч 4+');
+        if (specials.length) {
+          const labels = specials.map(special => specialLabel(special.kind));
+          bonusParts.push(specials.length === 1 ? `Создан ${labels[0]}` : `Созданы бонусы: ${labels.join(' + ')}`);
+        }
+        if (naturalActivation.labels.length) bonusParts.push(`Активированы: ${naturalActivation.labels.join(' + ')}`);
+        const bonus = bonusParts.join(' · ') || null;
+
+        const sizes = matches.combos.map(combo => combo.size).sort((a, b) => b - a);
+        const matchNote = [config.bigMatches && isBigMatch ? `Частота матчей 4+: ${BIG_MATCH_FREQUENCIES[config.bigMatchLevel].label.toLowerCase()}` : null, bonus, matches.combos.length > 1 ? `Отдельных совпадений: ${matches.combos.length}` : `Собрано фишек: ${sizes[0]}`].filter(Boolean).join(' · ');
+        addFrame(frames, board, 'match', matchTitle(matches, titlePrefix), matchNote, {
+          matches: [...matches.keys], swap, bonus, bigMatch: isBigMatch,
+          matchCount: matches.combos.length, matchSizes: sizes, matchedCellCount: matches.keys.size
+        });
+
+        const keepKeys = new Set();
+        specials.forEach(special => {
+          const preferred = swap?.b;
+          const preferredKey = preferred && coordKey(preferred[0], preferred[1]);
+          const line = [...special.combo.groups].sort((a, b) => b.cells.length - a.cells.length)[0];
+          const keep = preferred && special.combo.keys.has(preferredKey) ? preferred : line.cells[Math.floor(line.cells.length / 2)];
+          keepKeys.add(coordKey(keep[0], keep[1]));
+          board[keep[0]][keep[1]] = makeCell(board[keep[0]][keep[1]].type, special.kind);
+        });
+        const collapsed = collapseAndFill(board, naturalActivation.clear, keepKeys, rng, config);
+        board = collapsed.board;
+        addFrame(frames, board, 'refill', `${titlePrefix}: заполнение`, SPAWN_DIRECTIONS[config.spawn].note, {
+          spawned: [...collapsed.spawned], motion: collapsed.motion
+        });
+        const immediateCount = config.bonusActivation === 'immediate' ? specials.length : 0;
+        if (immediateCount) {
+          for (let i = 0; i < immediateCount; i++) board = activateSpecial(frames, board, rng, config, titlePrefix, true);
+        } else {
+          board = activateSpecial(frames, board, rng, config, titlePrefix);
+        }
+        return board;
+      }
+
+      function createScenario(config, suppliedBoard = null) {
+        const rng = mulberry32(hashSeed(JSON.stringify({ ...config, suppliedBoard })));
+        let board = suppliedBoard ? cloneBoard(suppliedBoard) : generateStableBoard(rng, config.typeCount, config.rows, config.cols);
+        const frames = [];
+        addFrame(frames, board, 'initial', 'Стартовая раскладка', suppliedBoard ? 'Использована ручная раскладка' : 'Поле построено по seed без готовых матчей');
+
+        let initialMatches = findMatches(board);
+        let guard = 0;
+        while (initialMatches.keys.size && guard++ < 6) {
+          board = resolveMatch(frames, board, initialMatches, rng, config, 'Стартовый каскад', null);
+          initialMatches = findMatches(board);
+        }
+
+        const moveCount = Math.min(MAX_MOVES, Math.max(1, Math.round(config.duration * (0.25 + config.speed * 0.075))));
+        let currentPlayer = 1;
+        let movesUsedByCurrentPlayer = 0;
+        for (let move = 1; move <= moveCount; move++) {
+          const movePrefix = playerTurnPrefix(config, currentPlayer, `Ход ${move}`);
+          const bigMatchChance = BIG_MATCH_FREQUENCIES[config.bigMatchLevel]?.chance || 0;
+          let planned = null;
+          if (config.bigMatches && !(suppliedBoard && move === 1) && rng() < bigMatchChance) {
+            planned = planBigMatch(board, rng, config);
+            if (planned) {
+              board = planned.board;
+              frames[frames.length - 1].board = cloneBoard(board);
+              frames[frames.length - 1].note += ` · подготовлен матч на ${planned.size} фишек`;
+            }
+          }
+          let swaps = findValidSwaps(board, config.profile === 'masters');
+          if (!swaps.length) {
+            if (suppliedBoard && move === 1) throw new Error('В ручной раскладке нет доступного хода. Измените несколько фишек и попробуйте снова.');
+            board = generateStableBoard(rng, config.typeCount, config.rows, config.cols);
+            addFrame(frames, board, 'shuffle', `${movePrefix}: перемешивание`, 'Доступных матчей не осталось — поле пересобрано по тому же seed.');
+            swaps = findValidSwaps(board, config.profile === 'masters');
+          }
+          if (config.bigMatches && !planned) swaps.sort((left, right) => scoreSwap(board, right) - scoreSwap(board, left));
+          const preferredCount = config.bigMatches ? Math.max(1, Math.ceil(swaps.length / (config.bigMatchLevel + 1))) : swaps.length;
+          const selected = planned?.swap || swaps[Math.floor(rng() * preferredCount)];
+          swapCells(board, selected.a, selected.b);
+          addFrame(frames, board, 'swap', `${movePrefix}: обмен`, `Клетки ${selected.a[1] + 1}:${selected.a[0] + 1} и ${selected.b[1] + 1}:${selected.b[0] + 1}`, { swap: selected });
+          let matches = findMatches(board);
+          const specialPair = config.profile === 'masters' && Boolean(board[selected.a[0]][selected.a[1]].special && board[selected.b[0]][selected.b[1]].special);
+          let extraMove = false;
+          if (specialPair) {
+            board = resolveSpecialSwap(frames, board, selected.a, selected.b, rng, config, movePrefix);
+          } else {
+            extraMove = grantsMastersExtraMove(matches, config);
+            board = resolveMatch(frames, board, matches, rng, config, movePrefix, selected);
+          }
+
+          let cascades = 0;
+          matches = config.cascades ? findMatches(board) : { keys: new Set() };
+          while (matches.keys.size && cascades++ < 5) {
+            extraMove ||= grantsMastersExtraMove(matches, config);
+            board = resolveMatch(frames, board, matches, rng, config, playerTurnPrefix(config, currentPlayer, `Каскад ${move}.${cascades}`), null);
+            matches = findMatches(board);
+          }
+          if (config.cascades && matches.keys.size) {
+            board = generateStableBoard(rng, config.typeCount, config.rows, config.cols);
+            addFrame(frames, board, 'shuffle', `${movePrefix}: стабилизация`, 'Достигнут безопасный предел каскадов — поле детерминированно пересобрано без готовых совпадений.');
+          }
+          if (!config.cascades && findMatches(board).keys.size) {
+            board = generateStableBoard(rng, config.typeCount, config.rows, config.cols);
+            frames[frames.length - 1].board = cloneBoard(board);
+            frames[frames.length - 1].note += ' · каскады отключены, поле стабилизировано';
+          }
+          if (config.profile === 'masters' && config.mastersTwoPlayers && !extraMove) {
+            movesUsedByCurrentPlayer++;
+            if (movesUsedByCurrentPlayer >= config.mastersMovesPerTurn) {
+              currentPlayer = currentPlayer === 1 ? 2 : 1;
+              movesUsedByCurrentPlayer = 0;
+            }
+          }
+        }
+        return frames;
+      }
+
+      function readConfig() {
+        const duration = Number($('#duration').value);
+        if (!Number.isSafeInteger(duration) || duration < 1) throw new Error('Длительность должна быть целым числом от 1 секунды.');
+        const cols = Number($('#board-cols').value);
+        const rows = Number($('#board-rows').value);
+        if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 3 || cols > 12 || rows < 3 || rows > 12) {
+          throw new Error('Размер поля: целые значения от 3 до 12 для столбцов и строк.');
+        }
+        const enteredKey = $('#seed').value.trim();
+        if (!enteredKey) throw new Error('Введите seed / ключ проекта или сгенерируйте новый.');
+        const mastersMovesPerTurn = Number($('#masters-moves-per-turn')?.value ?? state.mastersMovesPerTurn);
+        if (!Number.isSafeInteger(mastersMovesPerTurn) || mastersMovesPerTurn < 1) throw new Error('Ходов на игрока: введите целое число от 1.');
+        const seed = seedEntropy(enteredKey);
+        if (new TextEncoder().encode(seed).length > 256) throw new Error('Seed должен занимать не больше 256 байт в UTF-8.');
+        return {
+          profile: $('input[name="profile"]:checked').value,
+          cols,
+          rows,
+          typeCount: Number($('#piece-count').value),
+          colors: state.colors.slice(0, Number($('#piece-count').value)),
+          duration,
+          speed: Number($('#speed').value),
+          spawn: $('input[name="spawn"]:checked').value,
+          seed,
+          cascades: $('#allow-cascades')?.checked ?? true,
+          bigMatches: Number($('input[name="big-match-level"]:checked')?.value || 0) > 0,
+          bigMatchLevel: Number($('input[name="big-match-level"]:checked')?.value || 0),
+          gameplay: $('input[name="gameplay"]:checked').value,
+          bonusActivation: $('input[name="bonus-activation"]:checked')?.value || 'never',
+          empireCrystal: $('#empire-crystal')?.checked ?? state.empireCrystal,
+          empireDragon: $('#empire-dragon')?.checked ?? state.empireDragon,
+          mastersExtraMove: Boolean($('#masters-two-players')?.checked ?? state.mastersTwoPlayers) && Boolean($('#masters-extra-move')?.checked ?? state.mastersExtraMove),
+          mastersTwoPlayers: $('#masters-two-players')?.checked ?? state.mastersTwoPlayers,
+          mastersMovesPerTurn,
+          mastersArrow: $('#masters-arrow')?.checked ?? state.mastersArrow,
+          mastersLightning: $('#masters-lightning')?.checked ?? state.mastersLightning,
+          mastersBomb: $('#masters-bomb')?.checked ?? state.mastersBomb
+        };
+      }
+
+      function applyProjectKey(value) {
+        const payload = decodeProjectKey(value);
+        if (!payload) return false;
+        stopPlayback();
+        state.manualBoard = null;
+        state.colors = DEFAULT_COLORS.map((color, index) => payload.colors[index] || color);
+        state.bigMatches = payload.bigMatchLevel > 0;
+        state.bigMatchLevel = payload.bigMatchLevel;
+        state.bonusActivation = payload.bonusActivation;
+        state.empireCrystal = payload.empireCrystal;
+        state.empireDragon = payload.empireDragon;
+        state.mastersExtraMove = payload.mastersExtraMove;
+        state.mastersTwoPlayers = payload.mastersTwoPlayers;
+        state.mastersMovesPerTurn = payload.mastersMovesPerTurn;
+        state.mastersArrow = payload.mastersArrow;
+        state.mastersLightning = payload.mastersLightning;
+        state.mastersBomb = payload.mastersBomb;
+        $(`input[name="gameplay"][value="${payload.gameplay}"]`).checked = true;
+        $(`input[name="profile"][value="${payload.profile}"]`).checked = true;
+        $('#board-cols').value = payload.cols;
+        $('#board-rows').value = payload.rows;
+        $('#piece-count').value = payload.typeCount;
+        $('#duration').value = payload.duration;
+        $('#speed').value = payload.speed;
+        $(`input[name="spawn"][value="${payload.spawn}"]`).checked = true;
+        renderModifiers();
+        renderRuleSummary();
+        $('#allow-cascades').checked = payload.cascades;
+        updateGameplayUi();
+        renderPalette();
+        $('#speed-value').textContent = payload.speed;
+        $('#manual-toggle').checked = payload.manual !== null;
+        $('#manual-panel').classList.toggle('visible', payload.manual !== null);
+        if (payload.manual) {
+          state.manualBoard = payload.manual.map(row => row.map(type => makeCell(type)));
+          renderBrushes();
+          renderManualGrid();
+        }
+        $('#seed').value = value;
+        generate(false);
+        return true;
+      }
+
+      function pieceShape(cell, x, y, size, color, cssClass = '', motionMarkup = '') {
+        if (!cell) return '';
+        const cx = x + size / 2, cy = y + size / 2, radius = size * .34;
+        const common = `data-type="${cell.type}"`;
+        const roundedEdge = `stroke="${color}" stroke-width="${radius*.18}" stroke-linejoin="round" stroke-linecap="round" paint-order="stroke fill"`;
+        let shape = '';
+        switch (cell.type % 8) {
+          case 0: shape = `<circle ${common} cx="${cx}" cy="${cy}" r="${radius}" fill="${color}"/>`; break;
+          case 1: shape = `<rect ${common} x="${cx-radius*.82}" y="${cy-radius*.82}" width="${radius*1.64}" height="${radius*1.64}" rx="12" fill="${color}" transform="rotate(45 ${cx} ${cy})"/>`; break;
+          case 2: shape = `<path ${common} d="M ${cx} ${cy-radius} L ${cx+radius*.87} ${cy-radius*.5} L ${cx+radius*.87} ${cy+radius*.5} L ${cx} ${cy+radius} L ${cx-radius*.87} ${cy+radius*.5} L ${cx-radius*.87} ${cy-radius*.5} Z" fill="${color}" ${roundedEdge}/>`; break;
+          case 3: shape = `<rect ${common} x="${cx-radius}" y="${cy-radius}" width="${radius*2}" height="${radius*2}" rx="${radius*.45}" fill="${color}"/>`; break;
+          case 4: shape = `<path ${common} d="${starPath(cx, cy, radius, radius*.48, 5)}" fill="${color}" ${roundedEdge}/>`; break;
+          case 5: shape = `<path ${common} d="M ${cx} ${cy+radius*.82} C ${cx-radius*1.35} ${cy}, ${cx-radius*.72} ${cy-radius}, ${cx} ${cy-radius*.28} C ${cx+radius*.72} ${cy-radius}, ${cx+radius*1.35} ${cy}, ${cx} ${cy+radius*.82} Z" fill="${color}" ${roundedEdge}/>`; break;
+          case 6: shape = `<path ${common} d="M ${cx-radius} ${cy} Q ${cx} ${cy-radius*1.25} ${cx+radius} ${cy} Q ${cx} ${cy+radius*1.25} ${cx-radius} ${cy} Z" fill="${color}" ${roundedEdge}/>`; break;
+          default: shape = `<path ${common} d="M ${cx} ${cy-radius} L ${cx+radius*.96} ${cy+radius*.82} L ${cx-radius*.96} ${cy+radius*.82} Z" fill="${color}" ${roundedEdge}/>`;
+        }
+        const shine = cell.type % 8 === 7
+          ? `<ellipse cx="${cx-radius*.12}" cy="${cy-radius*.18}" rx="${radius*.16}" ry="${radius*.10}" fill="white" opacity=".38" transform="rotate(-25 ${cx} ${cy})" pointer-events="none"/>`
+          : `<ellipse cx="${cx-radius*.28}" cy="${cy-radius*.35}" rx="${radius*.22}" ry="${radius*.13}" fill="white" opacity=".38" transform="rotate(-25 ${cx} ${cy})" pointer-events="none"/>`;
+        let special = '';
+        if (cell.special === 'crystal') {
+          special = `<path d="M ${cx} ${cy-radius*.72} L ${cx+radius*.58} ${cy} L ${cx} ${cy+radius*.72} L ${cx-radius*.58} ${cy} Z" fill="#fff" stroke="#0e1726" stroke-width="4"/><circle cx="${cx}" cy="${cy}" r="${radius*.16}" fill="#6ee7f2"/>`;
+        } else if (cell.special?.startsWith('dragon')) {
+          special = `<path d="M ${cx-radius*.58} ${cy-radius*.1} Q ${cx-radius*.7} ${cy-radius*.78} ${cx-radius*.15} ${cy-radius*.45} Q ${cx} ${cy-radius*.78} ${cx+radius*.15} ${cy-radius*.45} Q ${cx+radius*.7} ${cy-radius*.78} ${cx+radius*.58} ${cy-radius*.1} Q ${cx+radius*.5} ${cy+radius*.7} ${cx} ${cy+radius*.62} Q ${cx-radius*.5} ${cy+radius*.7} ${cx-radius*.58} ${cy-radius*.1} Z" fill="#fff" stroke="#0e1726" stroke-width="4"/><circle cx="${cx-radius*.22}" cy="${cy+radius*.08}" r="4" fill="#0e1726"/><circle cx="${cx+radius*.22}" cy="${cy+radius*.08}" r="4" fill="#0e1726"/>`;
+        } else if (cell.special === 'masters-arrow-row') {
+          special = `<path d="M ${cx-radius*.72} ${cy} L ${cx-radius*.28} ${cy-radius*.36} L ${cx-radius*.28} ${cy-radius*.13} L ${cx+radius*.28} ${cy-radius*.13} L ${cx+radius*.28} ${cy-radius*.36} L ${cx+radius*.72} ${cy} L ${cx+radius*.28} ${cy+radius*.36} L ${cx+radius*.28} ${cy+radius*.13} L ${cx-radius*.28} ${cy+radius*.13} L ${cx-radius*.28} ${cy+radius*.36} Z" fill="#fff" stroke="#0e1726" stroke-width="3" stroke-linejoin="round"/>`;
+        } else if (cell.special === 'masters-arrow-col') {
+          special = `<path d="M ${cx} ${cy-radius*.72} L ${cx-radius*.36} ${cy-radius*.28} L ${cx-radius*.13} ${cy-radius*.28} L ${cx-radius*.13} ${cy+radius*.28} L ${cx-radius*.36} ${cy+radius*.28} L ${cx} ${cy+radius*.72} L ${cx+radius*.36} ${cy+radius*.28} L ${cx+radius*.13} ${cy+radius*.28} L ${cx+radius*.13} ${cy-radius*.28} L ${cx+radius*.36} ${cy-radius*.28} Z" fill="#fff" stroke="#0e1726" stroke-width="3" stroke-linejoin="round"/>`;
+        } else if (cell.special === 'masters-lightning') {
+          special = `<path d="M ${cx+radius*.12} ${cy-radius*.74} L ${cx-radius*.42} ${cy+radius*.06} L ${cx-radius*.05} ${cy+radius*.02} L ${cx-radius*.18} ${cy+radius*.72} L ${cx+radius*.48} ${cy-radius*.16} L ${cx+radius*.08} ${cy-radius*.1} Z" fill="#fff" stroke="#0e1726" stroke-width="3" stroke-linejoin="round"/>`;
+        } else if (cell.special === 'masters-bomb') {
+          special = `<circle cx="${cx}" cy="${cy+radius*.1}" r="${radius*.48}" fill="#fff" stroke="#0e1726" stroke-width="4"/><path d="M ${cx+radius*.2} ${cy-radius*.3} Q ${cx+radius*.36} ${cy-radius*.68} ${cx+radius*.62} ${cy-radius*.58}" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="${cx+radius*.68}" cy="${cy-radius*.63}" r="${radius*.1}" fill="#ffc857"/>`;
+        }
+        return `<g class="piece ${cssClass}">${motionMarkup}${shape}${shine}${special}</g>`;
+      }
+
+      function starPath(cx, cy, outer, inner, points) {
+        const result = [];
+        for (let i = 0; i < points * 2; i++) {
+          const radius = i % 2 ? inner : outer;
+          const angle = -Math.PI / 2 + i * Math.PI / points;
+          result.push(`${i ? 'L' : 'M'} ${cx + Math.cos(angle) * radius} ${cy + Math.sin(angle) * radius}`);
+        }
+        return result.join(' ') + ' Z';
+      }
+
+      function swapMotion(dx, dy, inspection, singleRun = false) {
+        const duration = inspection ? '2.6s' : '1.35s';
+        const lane = CELL * .36;
+        const curveX = dy ? Math.sign(dy) * lane : 0;
+        const curveY = dx ? -Math.sign(dx) * lane : 0;
+        const midpoint = `${dx / 2 + curveX} ${dy / 2 + curveY}`;
+        if (singleRun) return `<animateTransform attributeName="transform" type="translate" values="${dx} ${dy};${midpoint};0 0" keyTimes="0;.5;1" dur=".62s" fill="freeze"/>`;
+        return `<animateTransform attributeName="transform" type="translate" values="${dx} ${dy};${midpoint};0 0;0 0;${midpoint};${dx} ${dy}" keyTimes="0;.17;.34;.66;.83;1" dur="${duration}" repeatCount="indefinite"/>`;
+      }
+
+      function arrivalMotion({ dx, dy, spawned }, order, inspection) {
+        if (inspection) {
+          const transform = `<animateTransform attributeName="transform" type="translate" values="${dx} ${dy};0 0;0 0;${dx} ${dy};${dx} ${dy}" keyTimes="0;.32;.48;.8;1" dur="3.2s" repeatCount="indefinite"/>`;
+          const opacity = spawned
+            ? `<animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;.1;.58;.8;1" dur="3.2s" repeatCount="indefinite"/>`
+            : '';
+          return transform + opacity;
+        }
+        const begin = `${-(order % 7) * .045}s`;
+        const transform = `<animateTransform attributeName="transform" type="translate" values="${dx} ${dy};0 0" keyTimes="0;1" dur=".62s" begin="${begin}" fill="freeze"/>`;
+        const opacity = spawned ? `<animate attributeName="opacity" values="0;1" dur=".3s" begin="${begin}" fill="freeze"/>` : '';
+        return transform + opacity;
+      }
+
+      function boardSvg(frame, config, compact = false, inspection = false, allowAnimation = true, singleRun = false) {
+        const rows = frame.board.length;
+        const cols = frame.board[0].length;
+        const width = PAD * 2 + cols * CELL;
+        const height = PAD * 2 + rows * CELL;
+        const matchSet = new Set(frame.matches || []);
+        const swapSet = new Set(frame.swap ? [coordKey(...frame.swap.a), coordKey(...frame.swap.b)] : []);
+        const animate = allowAnimation && !compact && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const background = `<rect width="${width}" height="${height}" rx="38" fill="#0c121c"/><rect x="14" y="14" width="${width-28}" height="${height-28}" rx="30" fill="#151e2c" stroke="#2a3850" stroke-width="3"/>`;
+        let slots = '';
+        let pieces = '';
+        let overlays = '';
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const x = PAD + c * CELL, y = PAD + r * CELL;
+            const key = coordKey(r, c);
+            slots += `<rect x="${x+4}" y="${y+4}" width="${CELL-8}" height="${CELL-8}" rx="18" fill="${(r+c)%2 ? '#111a28' : '#0f1723'}"/>`;
+            const classes = matchSet.has(key) ? (frame.bigMatch ? 'big-matching' : 'matching') : '';
+            let motionMarkup = '';
+            if (animate && frame.kind === 'swap' && frame.swap) {
+              if (key === coordKey(...frame.swap.a)) motionMarkup = swapMotion((frame.swap.b[1] - frame.swap.a[1]) * CELL, (frame.swap.b[0] - frame.swap.a[0]) * CELL, inspection, singleRun);
+              if (key === coordKey(...frame.swap.b)) motionMarkup = swapMotion((frame.swap.a[1] - frame.swap.b[1]) * CELL, (frame.swap.a[0] - frame.swap.b[0]) * CELL, inspection, singleRun);
+            } else if (animate && frame.kind === 'refill' && frame.motion?.[key]) {
+              motionMarkup = arrivalMotion(frame.motion[key], c, inspection);
+            }
+            pieces += pieceShape(frame.board[r][c], x, y, CELL, config.colors[frame.board[r][c]?.type] || '#fff', compact ? '' : classes, motionMarkup);
+            if (swapSet.has(key)) overlays += `<circle class="${compact ? '' : 'swap-ring'}" cx="${x+CELL/2}" cy="${y+CELL/2}" r="${CELL*.42}" fill="none" stroke="#b7f34a" stroke-width="3"/>`;
+            if (!compact && state.manualGame && state.selectedCell && key === coordKey(...state.selectedCell)) overlays += `<rect x="${x+3}" y="${y+3}" width="${CELL-6}" height="${CELL-6}" rx="19" fill="none" stroke="#6ee7f2" stroke-width="6"/>`;
+            if (matchSet.has(key)) {
+              const rayCount = frame.bigMatch ? 10 : 6;
+              for (let i = 0; i < rayCount; i++) {
+                const angle = i * Math.PI * 2 / rayCount;
+                const x1 = x + CELL/2 + Math.cos(angle) * CELL*(frame.bigMatch ? .30 : .34);
+                const y1 = y + CELL/2 + Math.sin(angle) * CELL*(frame.bigMatch ? .30 : .34);
+                const x2 = x + CELL/2 + Math.cos(angle) * CELL*(frame.bigMatch ? .52 : .47);
+                const y2 = y + CELL/2 + Math.sin(angle) * CELL*(frame.bigMatch ? .52 : .47);
+                overlays += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${frame.bigMatch ? '#b7f34a' : '#fff'}" stroke-width="${frame.bigMatch ? 6 : 4}" stroke-linecap="round" opacity=".82"/>`;
+              }
+            }
+          }
+        }
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeXml(frame.title)}">${background}${slots}${pieces}${overlays}</svg>`;
+      }
+
+      function renderFrame(index) {
+        if (!state.frames.length) return;
+        state.frame = Math.max(0, Math.min(index, state.frames.length - 1));
+        const frame = state.frames[state.frame];
+        const boardWidth = PAD * 2 + frame.board[0].length * CELL;
+        const boardHeight = PAD * 2 + frame.board.length * CELL;
+        const manualFirstRender = Boolean(state.manualGame) && state.manualAnimatedFrame !== state.frame;
+        const inspection = !state.playing && !state.manualGame;
+        $('#board').classList.toggle('inspection-mode', inspection);
+        $('#board').classList.toggle('manual-static', Boolean(state.manualGame) && !manualFirstRender);
+        $('#board').setAttribute('viewBox', `0 0 ${boardWidth} ${boardHeight}`);
+        $('#board').setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        $('#board').innerHTML = boardSvg(frame, state.config, false, inspection, !state.manualGame || manualFirstRender, Boolean(state.manualGame)).replace(/^<svg[^>]*>|<\/svg>$/g, '');
+        if (manualFirstRender) state.manualAnimatedFrame = state.frame;
+        $('#frame-index').textContent = `Этап ${state.frame + 1} / ${state.frames.length}`;
+        $('#frame-title').textContent = frame.title;
+        $('#frame-note').textContent = frame.note;
+        $('#progress-bar').style.width = `${state.frames.length > 1 ? state.frame / (state.frames.length - 1) * 100 : 100}%`;
+        $$('.stage-card').forEach((card, i) => card.classList.toggle('active', i === state.frame));
+      }
+
+      function renderTimeline() {
+        const timeline = $('#timeline');
+        state.timelineObserver?.disconnect();
+        state.timelineObserver = null;
+        timeline.className = 'timeline';
+        timeline.innerHTML = state.frames.map((frame, index) => {
+          return `<article class="stage-card${index === 0 ? ' active' : ''}" data-index="${index}">
+            <div class="stage-thumb" data-thumb="${index}" role="img" aria-label="${escapeXml(frame.title)}"></div>
+            <div class="stage-meta"><b>${String(index + 1).padStart(2, '0')} · ${escapeXml(frame.title)}</b><span>${escapeXml(frame.kind)}</span><button class="download" type="button" data-download="${index}">Скачать SVG</button></div>
+          </article>`;
+        }).join('');
+        const renderThumb = thumb => {
+          if (thumb.childElementCount) return;
+          const index = Number(thumb.dataset.thumb);
+          thumb.innerHTML = boardSvg(state.frames[index], state.config, true);
+        };
+        const thumbs = $$('[data-thumb]');
+        if ('IntersectionObserver' in window) {
+          state.timelineObserver = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+              if (!entry.isIntersecting) return;
+              renderThumb(entry.target);
+              state.timelineObserver?.unobserve(entry.target);
+            });
+          }, { root: timeline, rootMargin: '240px' });
+          thumbs.forEach(thumb => state.timelineObserver.observe(thumb));
+        } else {
+          thumbs.forEach(renderThumb);
+        }
+        $$('[data-download]').forEach(button => button.addEventListener('click', () => downloadFrame(Number(button.dataset.download))));
+        $$('.stage-card').forEach(card => card.addEventListener('click', event => {
+          if (event.target.closest('[data-download]')) return;
+          stopPlayback(); renderFrame(Number(card.dataset.index));
+        }));
+      }
+
+      function downloadFrame(index) {
+        const frame = state.frames[index];
+        if (!frame) return;
+        const svg = boardSvg(frame, state.config, true);
+        const a = document.createElement('a');
+        a.href = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+        a.download = `${String(index + 1).padStart(2, '0')}-${state.config.seed.replace(/[^a-zа-я0-9_-]+/gi, '-')}.svg`;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      function stopPlayback(redraw = false) {
+        state.playing = false;
+        clearTimeout(state.timer);
+        $('#play-pause').textContent = 'Играть';
+        $('#play-pause').classList.remove('active');
+        if (redraw && state.frames.length) renderFrame(state.frame);
+      }
+
+      function startPlayback(fromStart = false) {
+        if (!state.frames.length) return;
+        clearTimeout(state.timer);
+        state.playing = true;
+        if (fromStart || state.frame >= state.frames.length - 1) state.frame = 0;
+        renderFrame(state.frame);
+        $('#play-pause').textContent = 'Пауза';
+        $('#play-pause').classList.add('active');
+        const delay = state.frames.length > 1 ? Math.max(80, state.config.duration * 1000 / (state.frames.length - 1)) : 1000;
+        const step = () => {
+          if (!state.playing) return;
+          if (state.frame >= state.frames.length - 1) { stopPlayback(true); return; }
+          renderFrame(state.frame + 1);
+          state.timer = setTimeout(step, delay);
+        };
+        state.timer = setTimeout(step, delay);
+      }
+
+      function updateMetrics() {
+        const bigMatchLabel = ` · матчи 4+: ${BIG_MATCH_FREQUENCIES[state.config.bigMatchLevel].label.toLowerCase()}`;
+        const modeLabel = state.config.gameplay === 'manual' ? 'ручная партия' : `${state.config.duration} сек`;
+        const playerLabel = state.config.profile === 'masters' ? ` · ${state.config.mastersTwoPlayers ? '2 игрока' : '1 игрок'}` : '';
+        const stageWord = pluralRu(state.frames.length, 'этап', 'этапа', 'этапов');
+        $('#scenario-subtitle').textContent = `${modeLabel} · ${state.frames.length} ${stageWord} · ${PROFILE_NAMES[state.config.profile]}${playerLabel}${bigMatchLabel}`;
+        $('#metric-seed').textContent = state.config.seed.length > 16 ? state.config.seed.slice(0, 14) + '…' : state.config.seed;
+        $('#metric-speed').textContent = `${state.config.speed} / 10`;
+        $('#metric-profile').textContent = PROFILE_NAMES[state.config.profile];
+        $('#metric-spawn').textContent = SPAWN_DIRECTIONS[state.config.spawn].label;
+      }
+
+      function setCopyReady(ready) {
+        state.copyReady = ready;
+        $('#copy-seed').disabled = !ready;
+        $('#copy-control').dataset.disabled = String(!ready);
+      }
+
+      function showIdlePreview() {
+        const field = $('#seed');
+        field.value = randomSeed();
+        const config = readConfig();
+        const board = generateStableBoard(mulberry32(hashSeed(config.seed)), config.typeCount, config.rows, config.cols);
+        const preview = { board, kind: 'preview', title: 'Предпросмотр поля', note: '', matches: [], spawned: [], motion: {}, swap: null, bonus: null };
+        const width = PAD * 2 + config.cols * CELL;
+        const height = PAD * 2 + config.rows * CELL;
+        state.config = config;
+        state.frames = [];
+        state.frame = 0;
+        state.manualAnimatedFrame = -1;
+        state.hasScenario = false;
+        stopPlayback();
+        $('#board').setAttribute('viewBox', `0 0 ${width} ${height}`);
+        $('#board').setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        $('#board').innerHTML = boardSvg(preview, config, false, false).replace(/^<svg[^>]*>|<\/svg>$/g, '');
+        $('#scenario-subtitle').textContent = 'Настройте параметры и запустите генерацию';
+        $('#frame-index').textContent = '';
+        $('#frame-title').textContent = 'Поле готово к настройке';
+        $('#frame-note').textContent = 'Этапы появятся после запуска генерации.';
+        $('#metric-seed').textContent = '—';
+        $('#metric-speed').textContent = '—';
+        $('#metric-profile').textContent = '—';
+        $('#metric-spawn').textContent = '—';
+        $('#progress-bar').style.width = '0%';
+        $('#timeline').className = 'empty-timeline';
+        $('#timeline').textContent = 'После генерации здесь появятся этапы сценария.';
+        state.frames = [];
+        updateGameplayUi();
+        setCopyReady(false);
+        field.value = encodeProjectKey(config, null);
+      }
+
+      function generate(play = true) {
+        $('#error').classList.remove('visible');
+        try {
+          const config = readConfig();
+          if ($('#manual-toggle').checked) resizeManualBoard(config.rows, config.cols);
+          const supplied = $('#manual-toggle').checked ? state.manualBoard : null;
+          if (config.gameplay === 'manual') {
+            state.config = config;
+            return startManualGame(config, supplied, play);
+          }
+          const frames = createScenario(config, supplied);
+          state.config = config;
+          state.frames = frames;
+          state.hasScenario = true;
+          setCopyReady(Boolean(play));
+          updateGameplayUi();
+          $('#seed').value = encodeProjectKey(config, supplied);
+          stopPlayback();
+          renderTimeline();
+          updateMetrics();
+          renderFrame(0);
+          if (play) startPlayback(true);
+          return state.frames;
+        } catch (error) {
+          stopPlayback();
+          setCopyReady(false);
+          $('#error').textContent = error.message;
+          $('#error').classList.add('visible');
+          return [];
+        }
+      }
+
+      function updateGameplayUi() {
+        const manual = $('input[name="gameplay"]:checked').value === 'manual';
+        $('#timing-section').hidden = manual;
+        $('#generate').textContent = manual ? 'Начать ручную игру' : 'Сгенерировать и проиграть';
+        ['#prev-frame', '#play-pause', '#next-frame', '#replay'].forEach(selector => { $(selector).hidden = manual || !state.hasScenario; });
+        if (!manual) {
+          $('#finish-manual').hidden = true;
+          $('#download-all').hidden = !state.hasScenario;
+        }
+      }
+
+      function startManualGame(config, suppliedBoard, copyReady = true) {
+        stopPlayback();
+        const rng = mulberry32(hashSeed(JSON.stringify({ ...config, suppliedBoard, manualGame: true })));
+        let board = suppliedBoard ? cloneBoard(suppliedBoard) : generateStableBoard(rng, config.typeCount, config.rows, config.cols);
+        state.frames = [];
+        state.frame = 0;
+        state.manualAnimatedFrame = -1;
+        state.hasScenario = true;
+        setCopyReady(Boolean(copyReady));
+        updateGameplayUi();
+        const moveWord = pluralRu(config.mastersMovesPerTurn, 'обычному ходу', 'обычных хода', 'обычных ходов');
+        const playerNote = config.profile === 'masters' && config.mastersTwoPlayers ? `Каждый игрок делает по ${config.mastersMovesPerTurn} ${moveWord}; матч 4+ может добавить ход текущему игроку. ` : '';
+        addFrame(state.frames, board, 'initial', 'Ручная партия: старт', `${playerNote}Выберите фишку, затем соседнюю. Запись появится внизу после завершения партии.`);
+        let matches = findMatches(board), guard = 0;
+        while (matches.keys.size && guard++ < 6) {
+          board = resolveMatch(state.frames, board, matches, rng, config, 'Стартовый каскад', null);
+          matches = findMatches(board);
+        }
+        state.manualGame = { board, rng, move: 0, player: 1, movesUsedByCurrentPlayer: 0, animating: false };
+        state.selectedCell = null;
+        $('#seed').value = encodeProjectKey(config, suppliedBoard);
+        $('#manual-swap-message').hidden = true;
+        $('#finish-manual').hidden = false;
+        $('#download-all').hidden = true;
+        $('#board').classList.add('manual-game');
+        $('#timeline').className = 'empty-timeline';
+        $('#timeline').textContent = 'Идёт ручная партия. После завершения здесь появятся все ваши ходы.';
+        updateMetrics();
+        playManualFrames(0);
+        return state.frames;
+      }
+
+      function finishManualGame(note = 'Партия завершена пользователем') {
+        if (!state.manualGame) return;
+        clearTimeout(state.timer);
+        addFrame(state.frames, state.manualGame.board, 'finish', 'Ручная партия завершена', `${note} · сделано ходов: ${state.manualGame.move}`);
+        state.manualGame = null;
+        state.manualAnimatedFrame = -1;
+        state.selectedCell = null;
+        $('#manual-swap-message').hidden = true;
+        $('#finish-manual').hidden = true;
+        $('#download-all').hidden = false;
+        $('#board').classList.remove('manual-game');
+        $('#board').classList.remove('manual-static');
+        renderTimeline();
+        updateMetrics();
+        renderFrame(state.frames.length - 1);
+      }
+
+      function playManualFrames(fromIndex) {
+        const game = state.manualGame;
+        if (!game) return;
+        clearTimeout(state.timer);
+        game.animating = true;
+        let index = fromIndex;
+        const showNext = () => {
+          if (!state.manualGame) return;
+          renderFrame(index);
+          if (index >= state.frames.length - 1) {
+            game.animating = false;
+            state.timer = null;
+            return;
+          }
+          const kind = state.frames[index].kind;
+          const delay = kind === 'swap' || kind === 'refill' ? 700 : kind === 'match' || kind === 'bonus' ? 560 : 360;
+          state.timer = setTimeout(() => { index++; showNext(); }, delay);
+        };
+        showNext();
+      }
+
+      function playManualSwap(a, b) {
+        const game = state.manualGame;
+        if (!game || game.animating) return;
+        const adjacent = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
+        if (!adjacent) { state.selectedCell = b; renderFrame(state.frame); return; }
+        swapCells(game.board, a, b);
+        let matches = findMatches(game.board);
+        const specialPair = state.config.profile === 'masters' && Boolean(game.board[a[0]][a[1]].special && game.board[b[0]][b[1]].special);
+        if (!swapCreatesMatch(matches, a, b) && !specialPair) {
+          swapCells(game.board, a, b);
+          $('#manual-swap-message').hidden = false;
+          state.selectedCell = null;
+          renderFrame(state.frame);
+          return;
+        }
+        $('#manual-swap-message').hidden = true;
+        $('#error').classList.remove('visible');
+        game.move++;
+        const firstNewFrame = state.frames.length;
+        const currentPlayer = game.player;
+        const movePrefix = playerTurnPrefix(state.config, currentPlayer, `Ход ${game.move}`);
+        const swap = { a, b };
+        addFrame(state.frames, game.board, 'swap', `${movePrefix}: ручной обмен`, `Клетки ${a[1] + 1}:${a[0] + 1} и ${b[1] + 1}:${b[0] + 1}`, { swap });
+        let extraMove = false;
+        if (specialPair) {
+          game.board = resolveSpecialSwap(state.frames, game.board, a, b, game.rng, state.config, movePrefix);
+        } else {
+          extraMove = grantsMastersExtraMove(matches, state.config);
+          game.board = resolveMatch(state.frames, game.board, matches, game.rng, state.config, movePrefix, swap);
+        }
+        let cascades = 0;
+        matches = state.config.cascades ? findMatches(game.board) : { keys: new Set() };
+        while (matches.keys.size && cascades++ < 5) {
+          extraMove ||= grantsMastersExtraMove(matches, state.config);
+          game.board = resolveMatch(state.frames, game.board, matches, game.rng, state.config, playerTurnPrefix(state.config, currentPlayer, `Каскад ${game.move}.${cascades}`), null);
+          matches = findMatches(game.board);
+        }
+        if (state.config.cascades && matches.keys.size) {
+          game.board = generateStableBoard(game.rng, state.config.typeCount, state.config.rows, state.config.cols);
+          addFrame(state.frames, game.board, 'shuffle', `${movePrefix}: стабилизация`, 'Достигнут безопасный предел каскадов — поле детерминированно пересобрано без готовых совпадений.');
+        } else if (!state.config.cascades && findMatches(game.board).keys.size) {
+          game.board = generateStableBoard(game.rng, state.config.typeCount, state.config.rows, state.config.cols);
+          state.frames[state.frames.length - 1].board = cloneBoard(game.board);
+          state.frames[state.frames.length - 1].note += ' · каскады отключены, поле стабилизировано';
+        }
+        if (state.config.profile === 'masters' && state.config.mastersTwoPlayers && !extraMove) {
+          game.movesUsedByCurrentPlayer++;
+          if (game.movesUsedByCurrentPlayer >= state.config.mastersMovesPerTurn) {
+            game.player = currentPlayer === 1 ? 2 : 1;
+            game.movesUsedByCurrentPlayer = 0;
+          }
+        }
+        state.selectedCell = null;
+        updateMetrics();
+        playManualFrames(firstNewFrame);
+      }
+
+      function handleBoardClick(event) {
+        if (!state.manualGame || state.manualGame.animating) return;
+        const point = $('#board').createSVGPoint();
+        point.x = event.clientX;
+        point.y = event.clientY;
+        const local = point.matrixTransform($('#board').getScreenCTM().inverse());
+        const r = Math.floor((local.y - PAD) / CELL), c = Math.floor((local.x - PAD) / CELL);
+        if (r < 0 || c < 0 || r >= state.config.rows || c >= state.config.cols) return;
+        const chosen = [r, c];
+        if (!state.selectedCell) { $('#manual-swap-message').hidden = true; state.selectedCell = chosen; renderFrame(state.frame); }
+        else playManualSwap(state.selectedCell, chosen);
+      }
+
+      function renderPalette() {
+        const count = Number($('#piece-count').value);
+        $('#piece-count-value').textContent = count;
+        $('#palette').innerHTML = state.colors.slice(0, count).map((color, i) => `<label class="color-control" title="Цвет типа ${i + 1}"><input type="color" value="${color}" data-color="${i}"><span>${i + 1}</span></label>`).join('');
+        $$('[data-color]').forEach(input => input.addEventListener('input', () => {
+          state.colors[Number(input.dataset.color)] = input.value;
+          renderBrushes(); renderManualGrid();
+          if (state.frames.length) { state.config.colors = state.colors.slice(0, count); renderTimeline(); renderFrame(state.frame); }
+        }));
+        if (state.manualBoard) state.manualBoard.forEach(row => row.forEach(cell => { cell.type %= count; cell.special = null; }));
+        if (state.brush >= count) state.brush = count - 1;
+        renderBrushes(); renderManualGrid();
+      }
+
+      function renderBrushes() {
+        const count = Number($('#piece-count').value);
+        $('#brushes').innerHTML = state.colors.slice(0, count).map((color, i) => `<button class="brush${state.brush === i ? ' active' : ''}" data-brush="${i}" type="button" title="Тип ${i + 1}">${editorPiece(i, color)}</button>`).join('');
+        $$('[data-brush]').forEach(button => button.addEventListener('click', () => { state.brush = Number(button.dataset.brush); renderBrushes(); }));
+      }
+
+      function editorPiece(type, color) {
+        return `<svg viewBox="0 0 64 64" aria-hidden="true">${pieceShape(makeCell(type), 0, 0, 64, color)}</svg>`;
+      }
+
+      function ensureManualBoard() {
+        if (state.manualBoard) return;
+        const seed = seedEntropy() || 'MANUAL';
+        const rows = Number($('#board-rows').value);
+        const cols = Number($('#board-cols').value);
+        state.manualBoard = generateStableBoard(mulberry32(hashSeed(seed)), Number($('#piece-count').value), rows, cols);
+      }
+
+      function resizeManualBoard(rows, cols) {
+        const current = state.manualBoard;
+        if (current && current.length === rows && current[0].length === cols) return;
+        const seed = seedEntropy() || 'MANUAL';
+        const next = generateStableBoard(mulberry32(hashSeed(`${seed}:${rows}x${cols}`)), Number($('#piece-count').value), rows, cols);
+        if (current) {
+          for (let r = 0; r < Math.min(rows, current.length); r++) {
+            for (let c = 0; c < Math.min(cols, current[0].length); c++) next[r][c] = { ...current[r][c], special: null };
+          }
+        }
+        state.manualBoard = next;
+      }
+
+      function renderManualGrid() {
+        if (!state.manualBoard) return;
+        $('#manual-grid').style.gridTemplateColumns = `repeat(${state.manualBoard[0].length}, minmax(0, 1fr))`;
+        $('#manual-grid').innerHTML = state.manualBoard.flatMap((row, r) => row.map((cell, c) => `<button class="manual-cell" data-cell="${r}:${c}" type="button" aria-label="Строка ${r+1}, столбец ${c+1}, тип ${cell.type+1}">${editorPiece(cell.type, state.colors[cell.type])}</button>`)).join('');
+        $$('[data-cell]').forEach(button => button.addEventListener('click', () => {
+          const [r, c] = button.dataset.cell.split(':').map(Number);
+          state.manualBoard[r][c] = makeCell(state.brush);
+          renderManualGrid();
+        }));
+      }
+
+      function renderModifiers() {
+        const profile = $('input[name="profile"]:checked').value;
+        let html = `<div class="modifier-stack">
+          <div class="modifier-group">
+            <label class="check-row"><input id="allow-cascades" type="checkbox" checked><span><b>Разрешить каскады</b><small>Автоматически схлопывать новые совпадения после заполнения.</small></span></label>
+          </div>
+          <div class="modifier-group">
+            <div class="modifier-heading">Частота матчей больше трёх</div>
+            <div class="segmented five">
+              ${BIG_MATCH_FREQUENCIES.map((item, level) => `<input id="big-level-${level}" type="radio" name="big-match-level" value="${level}" ${state.bigMatchLevel === level ? 'checked' : ''}><label for="big-level-${level}">${item.label}</label>`).join('')}
+            </div>
+            <p class="section-note">Определяет, как часто генератор специально подготавливает совпадения из четырёх и более фишек.</p>
+          </div>`;
+        if (profile === 'empire') {
+          html += `<div class="modifier-group">
+              <div class="modifier-heading">Особые фишки Empire &amp; Puzzles</div>
+              <label class="check-row"><input id="empire-dragon" type="checkbox" ${state.empireDragon ? 'checked' : ''}><span><b>Dragon Shield</b><small>Создавать особую фишку при совпадении четырёх одинаковых элементов в прямой линии.</small></span></label>
+              <label class="check-row"><input id="empire-crystal" type="checkbox" ${state.empireCrystal ? 'checked' : ''}><span><b>Power Shard</b><small>Создавать кристалл при совпадении пяти элементов или двух соединённых линий одного цвета.</small></span></label>
+            </div>
+            <div class="modifier-group">
+            <div class="modifier-heading">Автоактивация спецфишек</div>
+            <div class="segmented three">
+              ${[['never','Никогда'],['rare','Редко'],['immediate','Сразу']].map(([value, label]) => `<input id="bonus-${value}" type="radio" name="bonus-activation" value="${value}" ${state.bonusActivation === value ? 'checked' : ''}><label for="bonus-${value}">${label}</label>`).join('')}
+            </div>
+            <p class="section-note">«Редко» — детерминированный шанс 30% после разрешения матча; «Сразу» — непосредственно после появления.</p>
+          </div>`;
+        } else if (profile === 'masters') {
+          html += `<div class="modifier-group">
+              <div class="modifier-heading">Правила Match Masters</div>
+              <label class="check-row"><input id="masters-two-players" type="checkbox" ${state.mastersTwoPlayers ? 'checked' : ''}><span><b>Два игрока</b><small>Выключено — играет один человек. Включено — игроки ходят по очереди.</small></span></label>
+              <label class="check-row${state.mastersTwoPlayers ? '' : ' is-disabled'}" id="masters-extra-row" ${state.mastersTwoPlayers ? '' : 'title="Необходимо включить «Два игрока»."'}><input id="masters-extra-move" type="checkbox" ${state.mastersTwoPlayers && state.mastersExtraMove ? 'checked' : ''} ${state.mastersTwoPlayers ? '' : 'disabled'}><span><b>Дополнительный ход за 4+</b><small>Если отдельный матч содержит четыре или больше фишек, текущий игрок сохраняет ход.</small></span></label>
+              <label class="field masters-moves-field${state.mastersTwoPlayers ? '' : ' is-disabled'}" id="masters-moves-row" ${state.mastersTwoPlayers ? '' : 'title="Необходимо включить «Два игрока»."'}><span class="field-label">Ходов на игрока</span><input id="masters-moves-per-turn" type="number" min="1" step="1" inputmode="numeric" value="${state.mastersMovesPerTurn}" ${state.mastersTwoPlayers ? '' : 'disabled'}><small>Количество обычных ходов подряд до передачи очереди. Дополнительный ход за 4+ этот лимит не расходует.</small></label>
+            </div>
+            <div class="modifier-group">
+              <div class="modifier-heading">Спецфишки за комбинации</div>
+              <label class="check-row"><input id="masters-arrow" type="checkbox" ${state.mastersArrow ? 'checked' : ''}><span><b>Special Arrow</b><small>Создавать направленную стрелку за четыре одинаковые фишки в прямой линии.</small></span></label>
+              <label class="check-row"><input id="masters-lightning" type="checkbox" ${state.mastersLightning ? 'checked' : ''}><span><b>Lightning</b><small>Создавать молнию за пять или больше одинаковых фишек в прямой линии.</small></span></label>
+              <label class="check-row"><input id="masters-bomb" type="checkbox" ${state.mastersBomb ? 'checked' : ''}><span><b>Bomb</b><small>Создавать бомбу за пересечение линий одного цвета в форме T или L.</small></span></label>
+            </div>
+            <div class="modifier-group">
+              <div class="modifier-heading">Автоактивация спецфишек</div>
+              <div class="segmented three">
+                ${[['never','Никогда'],['rare','Редко'],['immediate','Сразу']].map(([value, label]) => `<input id="bonus-${value}" type="radio" name="bonus-activation" value="${value}" ${state.bonusActivation === value ? 'checked' : ''}><label for="bonus-${value}">${label}</label>`).join('')}
+              </div>
+              <p class="section-note">Стрелка очищает ряд или столбец, молния — до 13 случайных фишек, бомба — область 3×3. Попавшая под эффект спецфишка запускает цепную реакцию.</p>
+            </div>
+            <div class="modifier-group">
+              <label class="check-row is-disabled"><input id="masters-boosters" type="checkbox" disabled><span><b>Включить крупные бустеры <em class="dev-badge">В разработке</em></b><small>Заряжаемые бустеры-персонажи, например All Aboard, Queen Cobra и Cleo Cadabra, будут добавлены позже.</small></span></label>
+            </div>`;
+        }
+        html += `</div>`;
+        $('#modifiers').innerHTML = html;
+        $$('input[name="big-match-level"]').forEach(input => input.addEventListener('change', event => {
+          state.bigMatchLevel = Number(event.target.value);
+          state.bigMatches = state.bigMatchLevel > 0;
+        }));
+        $$('input[name="bonus-activation"]').forEach(input => input.addEventListener('change', event => { state.bonusActivation = event.target.value; }));
+        $('#empire-dragon')?.addEventListener('change', event => { state.empireDragon = event.target.checked; });
+        $('#empire-crystal')?.addEventListener('change', event => { state.empireCrystal = event.target.checked; });
+        $('#masters-extra-move')?.addEventListener('change', event => { state.mastersExtraMove = event.target.checked; });
+        $('#masters-moves-per-turn')?.addEventListener('input', event => {
+          const value = Number(event.target.value);
+          if (Number.isSafeInteger(value) && value >= 1) state.mastersMovesPerTurn = value;
+        });
+        $('#masters-two-players')?.addEventListener('change', event => {
+          state.mastersTwoPlayers = event.target.checked;
+          state.mastersExtraMove = state.mastersTwoPlayers;
+          const extraRow = $('#masters-extra-row');
+          const extraInput = $('#masters-extra-move');
+          const movesRow = $('#masters-moves-row');
+          const movesInput = $('#masters-moves-per-turn');
+          extraInput.disabled = !state.mastersTwoPlayers;
+          extraInput.checked = state.mastersExtraMove;
+          extraRow.classList.toggle('is-disabled', !state.mastersTwoPlayers);
+          extraRow.title = state.mastersTwoPlayers ? '' : 'Необходимо включить «Два игрока».';
+          movesInput.disabled = !state.mastersTwoPlayers;
+          movesRow.classList.toggle('is-disabled', !state.mastersTwoPlayers);
+          movesRow.title = state.mastersTwoPlayers ? '' : 'Необходимо включить «Два игрока».';
+        });
+        $('#masters-arrow')?.addEventListener('change', event => { state.mastersArrow = event.target.checked; });
+        $('#masters-lightning')?.addEventListener('change', event => { state.mastersLightning = event.target.checked; });
+        $('#masters-bomb')?.addEventListener('change', event => { state.mastersBomb = event.target.checked; });
+      }
+
+      function renderRuleSummary() {
+        const profile = $('input[name="profile"]:checked').value;
+        const text = {
+          empire: '<b>Правило профиля:</b> если собрать четыре одинаковые фишки в прямую линию, появится Dragon Shield. При активации он уничтожит себя и четыре соседние клетки — сверху, снизу, слева и справа. Если собрать пять одинаковых фишек в линию либо соединить две линии одного цвета углом или крестом, появится Power Shard. При активации он уберёт с поля все фишки своего цвета.',
+          masters: '<b>Правило профиля:</b> игроки обменивают соседние фишки и собирают линии из трёх и более. В режиме двух игроков каждый делает заданное число обычных ходов подряд, после чего очередь переходит сопернику. Матч из 4+ может дать дополнительный ход, который не уменьшает этот лимит. Четыре в линию создают Special Arrow, пять в линию — Lightning, а пересечение в форме T или L — Bomb. Lightning убирает до 13 случайных фишек; спецфишки активируются в совпадениях и цепных реакциях, а две соседние спецфишки можно объединить. Каждую спецфишку можно отключить отдельно; крупные заряжаемые бустеры пока не моделируются.',
+          universal: '<b>Правило профиля:</b> соседний обмен → матч 3+ → схлопывание → заполнение.'
+        };
+        $('#rule-summary').innerHTML = text[profile];
+      }
+
+      async function copyProjectKey() {
+        const field = $('#seed');
+        const button = $('#copy-seed');
+        try {
+          const config = readConfig();
+          if ($('#manual-toggle').checked) resizeManualBoard(config.rows, config.cols);
+          field.value = encodeProjectKey(config, $('#manual-toggle').checked ? state.manualBoard : null);
+        } catch (error) {
+          $('#error').textContent = error.message;
+          $('#error').classList.add('visible');
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(field.value);
+        } catch {
+          field.focus();
+          field.select();
+          document.execCommand('copy');
+        }
+        button.textContent = 'Скопировано';
+        setTimeout(() => { button.textContent = 'Копировать'; }, 1400);
+      }
+
+      function bindEvents() {
+        let seedImportTimer = null;
+        $('#piece-count').addEventListener('input', renderPalette);
+        ['#board-cols', '#board-rows'].forEach(selector => $(selector).addEventListener('input', () => {
+          const cols = Number($('#board-cols').value);
+          const rows = Number($('#board-rows').value);
+          if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 3 || cols > 12 || rows < 3 || rows > 12) return;
+          if (state.manualBoard) { resizeManualBoard(rows, cols); renderManualGrid(); }
+        }));
+        $('#speed').addEventListener('input', () => $('#speed-value').textContent = $('#speed').value);
+        $$('input[name="gameplay"]').forEach(input => input.addEventListener('change', () => {
+          if (state.manualGame) finishManualGame('Партия остановлена при смене режима');
+          if ($('input[name="gameplay"]:checked').value === 'manual' && state.playing) stopPlayback(true);
+          updateGameplayUi();
+        }));
+        $$('input[name="profile"]').forEach(input => input.addEventListener('change', () => {
+          if (state.manualGame) finishManualGame('Партия остановлена при смене профиля');
+          renderModifiers(); renderRuleSummary();
+        }));
+        $('#copy-seed').addEventListener('click', copyProjectKey);
+        $('#random-seed').addEventListener('click', () => {
+          const field = $('#seed');
+          try {
+            field.value = randomSeed();
+            const config = readConfig();
+            if ($('#manual-toggle').checked) resizeManualBoard(config.rows, config.cols);
+            field.value = encodeProjectKey(config, $('#manual-toggle').checked ? state.manualBoard : null);
+            setCopyReady(false);
+            $('#error').classList.remove('visible');
+          } catch (error) {
+            $('#error').textContent = error.message;
+            $('#error').classList.add('visible');
+          }
+        });
+        $('#seed').addEventListener('input', () => {
+          clearTimeout(seedImportTimer);
+          setCopyReady(false);
+          const value = $('#seed').value.trim();
+          if (!value.startsWith(PROJECT_KEY_PREFIX) && !value.startsWith(LEGACY_PROJECT_KEY_PREFIX)) return;
+          seedImportTimer = setTimeout(() => {
+            try {
+              $('#error').classList.remove('visible');
+              applyProjectKey(value);
+            } catch (error) {
+              $('#error').textContent = error.message;
+              $('#error').classList.add('visible');
+            }
+          }, 120);
+        });
+        $('#manual-toggle').addEventListener('change', () => {
+          $('#manual-panel').classList.toggle('visible', $('#manual-toggle').checked);
+          if ($('#manual-toggle').checked) { ensureManualBoard(); renderBrushes(); renderManualGrid(); }
+        });
+        $('#fill-manual').addEventListener('click', () => {
+          const rows = Number($('#board-rows').value);
+          const cols = Number($('#board-cols').value);
+          state.manualBoard = generateStableBoard(mulberry32(hashSeed(seedEntropy() || 'MANUAL')), Number($('#piece-count').value), rows, cols);
+          renderManualGrid();
+        });
+        $('#generate').addEventListener('click', () => generate(true));
+        $('#finish-manual').addEventListener('click', () => finishManualGame());
+        $('#board').addEventListener('click', handleBoardClick);
+        $('#play-pause').addEventListener('click', () => state.playing ? stopPlayback(true) : startPlayback(false));
+        $('#replay').addEventListener('click', () => startPlayback(true));
+        $('#prev-frame').addEventListener('click', () => { stopPlayback(); renderFrame(state.frame - 1); });
+        $('#next-frame').addEventListener('click', () => { stopPlayback(); renderFrame(state.frame + 1); });
+        $('#download-all').addEventListener('click', async () => {
+          for (let i = 0; i < state.frames.length; i++) { downloadFrame(i); await new Promise(resolve => setTimeout(resolve, 90)); }
+        });
+        document.addEventListener('visibilitychange', () => { if (document.hidden) stopPlayback(); });
+      }
+
+      window.__match3Test = {
+        hashSeed,
+        encodeProjectKey,
+        decodeProjectKey,
+        findMatches: board => findMatches(cloneBoard(board)),
+        swapCreatesMatch,
+        matchTitle: (matches, prefix = 'Каскад') => matchTitle(matches, prefix),
+        findValidSwaps: (board, allowSpecialPairs = false) => findValidSwaps(cloneBoard(board), allowSpecialPairs),
+        expandSpecialClear: (board, keys, seed = 1) => {
+          const result = expandSpecialClear(cloneBoard(board), new Set(keys), mulberry32(seed));
+          return { clear: [...result.clear], labels: result.labels };
+        },
+        chooseSpecialKinds: (board, config) => chooseSpecials(findMatches(cloneBoard(board)), config).map(special => special.kind),
+        createScenario: (config, board) => createScenario(config, board),
+        snapshot: () => ({ frameCount: state.frames.length, currentFrame: state.frame, config: state.config, board: state.frames[state.frame]?.board })
+      };
+      window.render_playable_to_text = () => JSON.stringify(window.__match3Test.snapshot());
+
+      bindEvents();
+      renderPalette();
+      renderModifiers();
+      renderRuleSummary();
+      updateGameplayUi();
+      showIdlePreview();
+    })();
+  </script>
+</body>
+</html>
