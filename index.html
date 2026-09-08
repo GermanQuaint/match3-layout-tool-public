@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Match-3 Layout Lab · v1.0.0</title>
+  <title>Match-3 Layout Lab · v1.1.0</title>
   <style>
     :root {
       color-scheme: dark;
@@ -209,6 +209,10 @@
     .brush svg, .manual-cell svg { display: block; width: 100%; height: 100%; overflow: visible; }
     .brush.active { border-color: #fff; outline: 2px solid var(--accent); }
     .manual-grid { display: grid; gap: 4px; }
+    .shape-cell { display: grid; place-items: center; min-width: 0; padding: 0; }
+    .shape-cell::before { content: ''; width: 55%; aspect-ratio: 1; border-radius: 50%; background: #5cc8ff; }
+    .shape-cell.excluded::before { width: 62%; border-radius: 0; background: #ff5b68; clip-path: polygon(12% 0, 50% 38%, 88% 0, 100% 12%, 62% 50%, 100% 88%, 88% 100%, 50% 62%, 12% 100%, 0 88%, 38% 50%, 0 12%); }
+    .manual-cell:disabled { opacity: .3; cursor: default; }
     .manual-cell {
       aspect-ratio: 1; border: 1px solid rgba(255,255,255,.11); border-radius: 7px; cursor: pointer;
       background: #0b1019; padding: 4px;
@@ -300,7 +304,7 @@
     <header class="topbar">
       <div class="brand">
         <div class="brand-mark">M3</div>
-        <div><div class="brand-title"><h1>Match-3 Layout Lab</h1><span class="version-badge">v1.0.0</span></div><p>Детерминированные раскладки для креатива</p></div>
+        <div><div class="brand-title"><h1>Match-3 Layout Lab</h1><span class="version-badge">v1.1.0</span></div><p>Детерминированные раскладки для креатива</p></div>
       </div>
     </header>
 
@@ -378,6 +382,14 @@
           <div class="field">
             <span class="field-label">Цвета типов</span>
             <div class="palette" id="palette"></div>
+          </div>
+          <label class="check-row">
+            <input id="shape-toggle" type="checkbox" aria-controls="shape-panel" aria-expanded="false">
+            <span><b>Своя форма поля</b><small>Выберите клетки, в которых фишки не будут появляться.</small></span>
+          </label>
+          <div id="shape-panel" class="manual-panel">
+            <p class="section-note">Синий круг — клетка с фишкой. Красный крестик — пустое место. Нажмите, чтобы переключить. Пропуски разделяют поле на отдельные участки заполнения.</p>
+            <div class="manual-grid" id="shape-grid" aria-label="Редактор формы поля"></div>
           </div>
         </section>
 
@@ -496,6 +508,7 @@
         colors: [...DEFAULT_COLORS],
         brush: 0,
         manualBoard: null,
+        boardMask: null,
         frames: [],
         frame: 0,
         playing: false,
@@ -581,6 +594,15 @@
           if (bitCount) bytes.push(packed & 255);
         }
         writeVarint(bytes, config.mastersMovesPerTurn);
+        if (config.boardMask) {
+          for (let i = 0; i < config.rows * config.cols; i += 8) {
+            let packed = 0;
+            for (let bit = 0; bit < 8 && i + bit < config.rows * config.cols; bit++) {
+              if (config.boardMask[Math.floor((i + bit) / config.cols)][(i + bit) % config.cols]) packed |= 1 << bit;
+            }
+            bytes.push(packed);
+          }
+        }
         const checksum = checksum16(bytes);
         bytes.push(checksum >> 8, checksum & 255);
         let binary = '';
@@ -631,6 +653,7 @@
         payload.bigMatchLevel = payload.bigMatches ? payload.bigMatchLevel : 0;
         payload.bigMatches = payload.bigMatchLevel > 0;
         if (payload.manual !== null && (!Array.isArray(payload.manual) || payload.manual.length !== payload.rows || payload.manual.some(row => !Array.isArray(row) || row.length !== payload.cols || row.some(type => !integerIn(type, 0, payload.typeCount - 1))))) throw new Error();
+        if (payload.boardMask !== undefined && (!Array.isArray(payload.boardMask) || payload.boardMask.length !== payload.rows || payload.boardMask.some(row => !Array.isArray(row) || row.length !== payload.cols || row.some(active => typeof active !== 'boolean')))) throw new Error();
         return payload;
       }
 
@@ -692,9 +715,16 @@
           }
         }
         const mastersMovesPerTurn = offset < bytes.length ? readVarint() : 3;
+        let boardMask;
+        if (offset < bytes.length) {
+          if (bytes.length - offset !== Math.ceil(rows * cols / 8)) throw new Error();
+          boardMask = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => Boolean(bytes[offset + Math.floor((r * cols + c) / 8)] & (1 << ((r * cols + c) % 8)))));
+          offset = bytes.length;
+        }
         if (offset !== bytes.length) throw new Error();
         return validateProjectPayload({
           version: 1, seed, profile, cols, rows, typeCount, colors, duration, speed, spawn,
+          ...(boardMask ? { boardMask } : {}),
           cascades: Boolean(flags & 1), bigMatches: Boolean(flags & 2), bigMatchLevel, manual,
           gameplay, bonusActivation,
           empireCrystal: hasEmpireToggles ? Boolean(flags & 4) : true,
@@ -742,18 +772,19 @@
 
       function makeCell(type, special = null) { return { type, special }; }
 
-      function generateStableBoard(rng, typeCount, rows, cols) {
+      function generateStableBoard(rng, typeCount, rows, cols, boardMask, attempt = 0) {
         const board = Array.from({ length: rows }, () => Array(cols).fill(null));
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
+            if (boardMask?.[r]?.[c] === false) continue;
             const forbidden = new Set();
-            if (c >= 2 && board[r][c - 1].type === board[r][c - 2].type) forbidden.add(board[r][c - 1].type);
-            if (r >= 2 && board[r - 1][c].type === board[r - 2][c].type) forbidden.add(board[r - 1][c].type);
+            if (c >= 2 && board[r][c - 1] && board[r][c - 2] && board[r][c - 1].type === board[r][c - 2].type) forbidden.add(board[r][c - 1].type);
+            if (r >= 2 && board[r - 1][c] && board[r - 2][c] && board[r - 1][c].type === board[r - 2][c].type) forbidden.add(board[r - 1][c].type);
             const allowed = Array.from({ length: typeCount }, (_, i) => i).filter(i => !forbidden.has(i));
             board[r][c] = makeCell(allowed[Math.floor(rng() * allowed.length)]);
           }
         }
-        if (!findValidSwaps(board).length) return generateStableBoard(rng, typeCount, rows, cols);
+        if (attempt < 99 && !findValidSwaps(board).length) return generateStableBoard(rng, typeCount, rows, cols, boardMask, attempt + 1);
         return board;
       }
 
@@ -911,6 +942,8 @@
 
         for (const plans of groups) {
           for (const plan of shuffled(plans, rng)) {
+            const required = [plan.source, ...plan.extra, ...Array.from({ length: plan.length }, (_, i) => plan.axis === 'row' ? [plan.fixed, plan.start + i] : [plan.start + i, plan.fixed])];
+            if (required.some(([r, c]) => !board[r][c])) continue;
             for (const targetType of shuffled(Array.from({ length: config.typeCount }, (_, i) => i), rng)) {
               const candidate = cloneBoard(board);
               const gapType = (targetType + 1 + Math.floor(rng() * (config.typeCount - 1))) % config.typeCount;
@@ -1087,6 +1120,37 @@
         });
         const spawned = new Set();
         const motion = {};
+        if (config.boardMask) {
+          const vertical = config.spawn === 'top' || config.spawn === 'bottom';
+          const towardEnd = config.spawn === 'top' || config.spawn === 'left';
+          for (let lane = 0; lane < (vertical ? cols : rows); lane++) {
+            let segment = [];
+            const fillSegment = () => {
+              const survivors = segment.filter(([r, c]) => next[r][c]).map(([r, c]) => ({ cell: next[r][c], r, c }));
+              const missing = segment.length - survivors.length;
+              segment.forEach(([r, c], i) => {
+                const survivor = survivors[towardEnd ? i - missing : i];
+                const key = coordKey(r, c);
+                if (survivor) {
+                  next[r][c] = survivor.cell;
+                  if (survivor.r !== r || survivor.c !== c) motion[key] = { dx: (survivor.c - c) * CELL, dy: (survivor.r - r) * CELL, spawned: false };
+                } else {
+                  next[r][c] = makeCell(Math.floor(rng() * config.typeCount));
+                  spawned.add(key);
+                  motion[key] = { dx: 0, dy: 0, spawned: true };
+                }
+              });
+              segment = [];
+            };
+            for (let pos = 0; pos < (vertical ? rows : cols); pos++) {
+              const r = vertical ? pos : lane, c = vertical ? lane : pos;
+              if (config.boardMask[r][c]) segment.push([r, c]);
+              else { fillSegment(); next[r][c] = null; }
+            }
+            fillSegment();
+          }
+          return { board: next, spawned, motion };
+        }
         if (config.spawn === 'top' || config.spawn === 'bottom') {
           for (let c = 0; c < cols; c++) {
             const survivors = [];
@@ -1204,7 +1268,7 @@
 
       function createScenario(config, suppliedBoard = null) {
         const rng = mulberry32(hashSeed(JSON.stringify({ ...config, suppliedBoard })));
-        let board = suppliedBoard ? cloneBoard(suppliedBoard) : generateStableBoard(rng, config.typeCount, config.rows, config.cols);
+        let board = suppliedBoard ? suppliedBoard.map((row, r) => row.map((cell, c) => config.boardMask?.[r]?.[c] === false ? null : { ...cell })) : generateStableBoard(rng, config.typeCount, config.rows, config.cols, config.boardMask);
         const frames = [];
         addFrame(frames, board, 'initial', 'Стартовая раскладка', suppliedBoard ? 'Использована ручная раскладка' : 'Поле построено по seed без готовых матчей');
 
@@ -1233,9 +1297,10 @@
           let swaps = findValidSwaps(board, config.profile === 'masters');
           if (!swaps.length) {
             if (suppliedBoard && move === 1) throw new Error('В ручной раскладке нет доступного хода. Измените несколько фишек и попробуйте снова.');
-            board = generateStableBoard(rng, config.typeCount, config.rows, config.cols);
+            board = generateStableBoard(rng, config.typeCount, config.rows, config.cols, config.boardMask);
             addFrame(frames, board, 'shuffle', `${movePrefix}: перемешивание`, 'Доступных матчей не осталось — поле пересобрано по тому же seed.');
             swaps = findValidSwaps(board, config.profile === 'masters');
+            if (!swaps.length) throw new Error('Для этой формы не удалось подобрать доступный ход. Добавьте соседние клетки для матчей из трёх фишек или измените seed.');
           }
           if (config.bigMatches && !planned) swaps.sort((left, right) => scoreSwap(board, right) - scoreSwap(board, left));
           const preferredCount = config.bigMatches ? Math.max(1, Math.ceil(swaps.length / (config.bigMatchLevel + 1))) : swaps.length;
@@ -1260,11 +1325,11 @@
             matches = findMatches(board);
           }
           if (config.cascades && matches.keys.size) {
-            board = generateStableBoard(rng, config.typeCount, config.rows, config.cols);
+            board = generateStableBoard(rng, config.typeCount, config.rows, config.cols, config.boardMask);
             addFrame(frames, board, 'shuffle', `${movePrefix}: стабилизация`, 'Достигнут безопасный предел каскадов — поле детерминированно пересобрано без готовых совпадений.');
           }
           if (!config.cascades && findMatches(board).keys.size) {
-            board = generateStableBoard(rng, config.typeCount, config.rows, config.cols);
+            board = generateStableBoard(rng, config.typeCount, config.rows, config.cols, config.boardMask);
             frames[frames.length - 1].board = cloneBoard(board);
             frames[frames.length - 1].note += ' · каскады отключены, поле стабилизировано';
           }
@@ -1297,6 +1362,7 @@
           profile: $('input[name="profile"]:checked').value,
           cols,
           rows,
+          ...($('#shape-toggle').checked ? { boardMask: state.boardMask.map(row => [...row]) } : {}),
           typeCount: Number($('#piece-count').value),
           colors: state.colors.slice(0, Number($('#piece-count').value)),
           duration,
@@ -1340,6 +1406,9 @@
         $(`input[name="profile"][value="${payload.profile}"]`).checked = true;
         $('#board-cols').value = payload.cols;
         $('#board-rows').value = payload.rows;
+        state.boardMask = payload.boardMask ? payload.boardMask.map(row => [...row]) : null;
+        $('#shape-toggle').checked = Boolean(payload.boardMask);
+        renderShapeGrid();
         $('#piece-count').value = payload.typeCount;
         $('#duration').value = payload.duration;
         $('#speed').value = payload.speed;
@@ -1362,7 +1431,7 @@
         return true;
       }
 
-      function pieceShape(cell, x, y, size, color, cssClass = '', motionMarkup = '') {
+      function pieceShape(cell, x, y, size, color, cssClass = '', motionMarkup = '', profile = 'universal') {
         if (!cell) return '';
         const cx = x + size / 2, cy = y + size / 2, radius = size * .34;
         const common = `data-type="${cell.type}"`;
@@ -1377,6 +1446,17 @@
           case 5: shape = `<path ${common} d="M ${cx} ${cy+radius*.82} C ${cx-radius*1.35} ${cy}, ${cx-radius*.72} ${cy-radius}, ${cx} ${cy-radius*.28} C ${cx+radius*.72} ${cy-radius}, ${cx+radius*1.35} ${cy}, ${cx} ${cy+radius*.82} Z" fill="${color}" ${roundedEdge}/>`; break;
           case 6: shape = `<path ${common} d="M ${cx-radius} ${cy} Q ${cx} ${cy-radius*1.25} ${cx+radius} ${cy} Q ${cx} ${cy+radius*1.25} ${cx-radius} ${cy} Z" fill="${color}" ${roundedEdge}/>`; break;
           default: shape = `<path ${common} d="M ${cx} ${cy-radius} L ${cx+radius*.96} ${cy+radius*.82} L ${cx-radius*.96} ${cy+radius*.82} Z" fill="${color}" ${roundedEdge}/>`;
+        }
+        if (profile === 'empire' && cell.type < 5) {
+          // Local coordinates keep the reference silhouettes identical at every render size.
+          const shields = [
+            'M 0 -1 A 1 1 0 1 1 0 1 A 1 1 0 1 1 0 -1 Z',
+            'M -.9 -1 Q 0 -.59 .9 -1 L .84 .2 Q .8 .64 0 1.08 Q -.8 .64 -.84 .2 Z',
+            'M -.92 -.92 Q 0 -1.08 .92 -.92 L .86 .35 Q .8 .94 0 1 Q -.8 .94 -.86 .35 Z',
+            'M -1 -.65 L -.72 -.96 L -.45 -.87 L -.22 -1.03 L 0 -.92 L .22 -1.03 L .45 -.87 L .72 -.96 L 1 -.65 L .82 -.43 Q .94 .4 0 1.08 Q -.94 .4 -.82 -.43 Z',
+            'M 0 -1.08 Q .38 -.78 .92 -.66 L .82 .25 Q .65 .67 0 1.08 Q -.65 .67 -.82 .25 L -.92 -.66 Q -.38 -.78 0 -1.08 Z'
+          ];
+          shape = `<g transform="translate(${cx} ${cy}) scale(${radius})"><path ${common} d="${shields[cell.type]}" fill="${color}" stroke="#29303b" stroke-width=".16" stroke-linejoin="round"/><path d="${shields[cell.type]}" transform="scale(.88)" fill="none" stroke="#fff" stroke-opacity=".42" stroke-width=".055" stroke-linejoin="round"/></g>`;
         }
         const shine = cell.type % 8 === 7
           ? `<ellipse cx="${cx-radius*.12}" cy="${cy-radius*.18}" rx="${radius*.16}" ry="${radius*.10}" fill="white" opacity=".38" transform="rotate(-25 ${cx} ${cy})" pointer-events="none"/>`
@@ -1447,6 +1527,7 @@
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
             const x = PAD + c * CELL, y = PAD + r * CELL;
+            if (config.boardMask?.[r]?.[c] === false) continue;
             const key = coordKey(r, c);
             slots += `<rect x="${x+4}" y="${y+4}" width="${CELL-8}" height="${CELL-8}" rx="18" fill="${(r+c)%2 ? '#111a28' : '#0f1723'}"/>`;
             const classes = matchSet.has(key) ? (frame.bigMatch ? 'big-matching' : 'matching') : '';
@@ -1457,7 +1538,7 @@
             } else if (animate && frame.kind === 'refill' && frame.motion?.[key]) {
               motionMarkup = arrivalMotion(frame.motion[key], c, inspection);
             }
-            pieces += pieceShape(frame.board[r][c], x, y, CELL, config.colors[frame.board[r][c]?.type] || '#fff', compact ? '' : classes, motionMarkup);
+            pieces += pieceShape(frame.board[r][c], x, y, CELL, config.colors[frame.board[r][c]?.type] || '#fff', compact ? '' : classes, motionMarkup, config.profile);
             if (swapSet.has(key)) overlays += `<circle class="${compact ? '' : 'swap-ring'}" cx="${x+CELL/2}" cy="${y+CELL/2}" r="${CELL*.42}" fill="none" stroke="#b7f34a" stroke-width="3"/>`;
             if (!compact && state.manualGame && state.selectedCell && key === coordKey(...state.selectedCell)) overlays += `<rect x="${x+3}" y="${y+3}" width="${CELL-6}" height="${CELL-6}" rx="19" fill="none" stroke="#6ee7f2" stroke-width="6"/>`;
             if (matchSet.has(key)) {
@@ -1590,11 +1671,11 @@
         $('#copy-control').dataset.disabled = String(!ready);
       }
 
-      function showIdlePreview() {
+      function showIdlePreview(newSeed = true) {
         const field = $('#seed');
-        field.value = randomSeed();
+        if (newSeed) field.value = randomSeed();
         const config = readConfig();
-        const board = generateStableBoard(mulberry32(hashSeed(config.seed)), config.typeCount, config.rows, config.cols);
+        const board = generateStableBoard(mulberry32(hashSeed(config.seed)), config.typeCount, config.rows, config.cols, config.boardMask);
         const preview = { board, kind: 'preview', title: 'Предпросмотр поля', note: '', matches: [], spawned: [], motion: {}, swap: null, bonus: null };
         const width = PAD * 2 + config.cols * CELL;
         const height = PAD * 2 + config.rows * CELL;
@@ -1670,7 +1751,7 @@
       function startManualGame(config, suppliedBoard, copyReady = true) {
         stopPlayback();
         const rng = mulberry32(hashSeed(JSON.stringify({ ...config, suppliedBoard, manualGame: true })));
-        let board = suppliedBoard ? cloneBoard(suppliedBoard) : generateStableBoard(rng, config.typeCount, config.rows, config.cols);
+        let board = suppliedBoard ? suppliedBoard.map((row, r) => row.map((cell, c) => config.boardMask?.[r]?.[c] === false ? null : { ...cell })) : generateStableBoard(rng, config.typeCount, config.rows, config.cols, config.boardMask);
         state.frames = [];
         state.frame = 0;
         state.manualAnimatedFrame = -1;
@@ -1740,6 +1821,7 @@
       function playManualSwap(a, b) {
         const game = state.manualGame;
         if (!game || game.animating) return;
+        if (!game.board[a[0]]?.[a[1]] || !game.board[b[0]]?.[b[1]]) return;
         const adjacent = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
         if (!adjacent) { state.selectedCell = b; renderFrame(state.frame); return; }
         swapCells(game.board, a, b);
@@ -1775,10 +1857,10 @@
           matches = findMatches(game.board);
         }
         if (state.config.cascades && matches.keys.size) {
-          game.board = generateStableBoard(game.rng, state.config.typeCount, state.config.rows, state.config.cols);
+          game.board = generateStableBoard(game.rng, state.config.typeCount, state.config.rows, state.config.cols, state.config.boardMask);
           addFrame(state.frames, game.board, 'shuffle', `${movePrefix}: стабилизация`, 'Достигнут безопасный предел каскадов — поле детерминированно пересобрано без готовых совпадений.');
         } else if (!state.config.cascades && findMatches(game.board).keys.size) {
-          game.board = generateStableBoard(game.rng, state.config.typeCount, state.config.rows, state.config.cols);
+          game.board = generateStableBoard(game.rng, state.config.typeCount, state.config.rows, state.config.cols, state.config.boardMask);
           state.frames[state.frames.length - 1].board = cloneBoard(game.board);
           state.frames[state.frames.length - 1].note += ' · каскады отключены, поле стабилизировано';
         }
@@ -1802,6 +1884,7 @@
         const local = point.matrixTransform($('#board').getScreenCTM().inverse());
         const r = Math.floor((local.y - PAD) / CELL), c = Math.floor((local.x - PAD) / CELL);
         if (r < 0 || c < 0 || r >= state.config.rows || c >= state.config.cols) return;
+        if (!state.manualGame.board[r][c]) return;
         const chosen = [r, c];
         if (!state.selectedCell) { $('#manual-swap-message').hidden = true; state.selectedCell = chosen; renderFrame(state.frame); }
         else playManualSwap(state.selectedCell, chosen);
@@ -1828,7 +1911,29 @@
       }
 
       function editorPiece(type, color) {
-        return `<svg viewBox="0 0 64 64" aria-hidden="true">${pieceShape(makeCell(type), 0, 0, 64, color)}</svg>`;
+        return `<svg viewBox="0 0 64 64" aria-hidden="true">${pieceShape(makeCell(type), 0, 0, 64, color, '', '', $('input[name="profile"]:checked').value)}</svg>`;
+      }
+
+      function renderShapeGrid() {
+        const rows = Number($('#board-rows').value), cols = Number($('#board-cols').value);
+        if (!Number.isInteger(rows) || !Number.isInteger(cols) || rows < 3 || rows > 12 || cols < 3 || cols > 12) return;
+        const previous = state.boardMask;
+        state.boardMask = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => previous?.[r]?.[c] ?? true));
+        const enabled = $('#shape-toggle').checked;
+        $('#shape-panel').classList.toggle('visible', enabled);
+        $('#shape-toggle').setAttribute('aria-expanded', String(enabled));
+        $('#shape-grid').style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+        $('#shape-grid').innerHTML = state.boardMask.flatMap((row, r) => row.map((active, c) => `<button class="manual-cell shape-cell${active ? '' : ' excluded'}" data-shape="${r}:${c}" type="button" aria-pressed="${!active}" aria-label="Строка ${r + 1}, столбец ${c + 1}: ${active ? 'с фишкой' : 'исключена'}"></button>`)).join('');
+        $$('[data-shape]').forEach(button => button.addEventListener('click', () => {
+          const [r, c] = button.dataset.shape.split(':').map(Number);
+          state.boardMask[r][c] = !state.boardMask[r][c];
+          renderShapeGrid();
+          renderManualGrid();
+          setCopyReady(false);
+          if (!state.hasScenario) {
+            try { showIdlePreview(false); } catch { /* Other inputs may still be incomplete. */ }
+          }
+        }));
       }
 
       function ensureManualBoard() {
@@ -1855,7 +1960,10 @@
       function renderManualGrid() {
         if (!state.manualBoard) return;
         $('#manual-grid').style.gridTemplateColumns = `repeat(${state.manualBoard[0].length}, minmax(0, 1fr))`;
-        $('#manual-grid').innerHTML = state.manualBoard.flatMap((row, r) => row.map((cell, c) => `<button class="manual-cell" data-cell="${r}:${c}" type="button" aria-label="Строка ${r+1}, столбец ${c+1}, тип ${cell.type+1}">${editorPiece(cell.type, state.colors[cell.type])}</button>`)).join('');
+        $('#manual-grid').innerHTML = state.manualBoard.flatMap((row, r) => row.map((cell, c) => {
+          const excluded = $('#shape-toggle').checked && state.boardMask?.[r]?.[c] === false;
+          return `<button class="manual-cell${excluded ? ' shape-cell excluded' : ''}" data-cell="${r}:${c}" type="button" ${excluded ? 'disabled' : ''} aria-label="Строка ${r+1}, столбец ${c+1}, ${excluded ? 'исключена' : `тип ${cell.type+1}`}">${excluded ? '' : editorPiece(cell.type, state.colors[cell.type])}</button>`;
+        })).join('');
         $$('[data-cell]').forEach(button => button.addEventListener('click', () => {
           const [r, c] = button.dataset.cell.split(':').map(Number);
           state.manualBoard[r][c] = makeCell(state.brush);
@@ -1987,8 +2095,16 @@
           const cols = Number($('#board-cols').value);
           const rows = Number($('#board-rows').value);
           if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 3 || cols > 12 || rows < 3 || rows > 12) return;
+          renderShapeGrid();
+          setCopyReady(false);
           if (state.manualBoard) { resizeManualBoard(rows, cols); renderManualGrid(); }
         }));
+        $('#shape-toggle').addEventListener('change', () => {
+          renderShapeGrid(); renderManualGrid(); setCopyReady(false);
+          if (!state.hasScenario) {
+            try { showIdlePreview(false); } catch { /* Other inputs may still be incomplete. */ }
+          }
+        });
         $('#speed').addEventListener('input', () => $('#speed-value').textContent = $('#speed').value);
         $$('input[name="gameplay"]').forEach(input => input.addEventListener('change', () => {
           if (state.manualGame) finishManualGame('Партия остановлена при смене режима');
@@ -1998,6 +2114,7 @@
         $$('input[name="profile"]').forEach(input => input.addEventListener('change', () => {
           if (state.manualGame) finishManualGame('Партия остановлена при смене профиля');
           renderModifiers(); renderRuleSummary();
+          renderBrushes(); renderManualGrid();
         }));
         $('#copy-seed').addEventListener('click', copyProjectKey);
         $('#random-seed').addEventListener('click', () => {
