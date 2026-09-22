@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Match-3 Layout Lab · v1.1.0</title>
+  <title>Match-3 Layout Lab · v1.2.0</title>
   <style>
     :root {
       color-scheme: dark;
@@ -247,6 +247,7 @@
     .metric { min-width: 0; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.07); }
     .metric span { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .09em; }
     .metric strong { display: block; min-width: 0; margin-top: 5px; font-size: 15px; overflow-wrap: anywhere; }
+    #metric-seed { max-height: 120px; overflow-y: auto; user-select: text; font-family: monospace; font-size: 12px; }
     .progress { height: 5px; border-radius: 99px; overflow: hidden; background: #0b1019; margin-top: 18px; }
     .progress > div { width: 0; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .18s linear; }
     .error { display: none; margin-top: 12px; color: #ffd6dc; background: rgba(255,110,130,.10); border: 1px solid rgba(255,110,130,.25); border-radius: 11px; padding: 10px; font-size: 12px; }
@@ -304,7 +305,7 @@
     <header class="topbar">
       <div class="brand">
         <div class="brand-mark">M3</div>
-        <div><div class="brand-title"><h1>Match-3 Layout Lab</h1><span class="version-badge">v1.1.0</span></div><p>Детерминированные раскладки для креатива</p></div>
+        <div><div class="brand-title"><h1>Match-3 Layout Lab</h1><span class="version-badge">v1.2.0</span></div><p>Детерминированные раскладки для креатива</p></div>
       </div>
     </header>
 
@@ -531,7 +532,8 @@
         manualAnimatedFrame: -1,
         timelineObserver: null,
         selectedCell: null,
-        config: null
+        config: null,
+        projectKey: ''
       };
 
       const $ = (selector) => document.querySelector(selector);
@@ -1614,10 +1616,24 @@
         }));
       }
 
+      function exportFrameSvg(frame, config, projectKey) {
+        const width = PAD * 2 + config.cols * CELL;
+        const height = PAD * 2 + config.rows * CELL;
+        const charactersPerLine = Math.max(1, Math.floor((width - 56) / 12));
+        const characters = Array.from(`Seed: ${config.seed}`);
+        const lines = [];
+        for (let i = 0; i < characters.length; i += charactersPerLine) lines.push(characters.slice(i, i + charactersPerLine).join(''));
+        const footerHeight = 24 + lines.length * 26;
+        const footer = `<rect y="${height}" width="${width}" height="${footerHeight}" fill="#0c121c"/>` + lines.map((line, i) => `<text x="28" y="${height + 28 + i * 26}" fill="#dce8f5" font-family="monospace" font-size="18">${escapeXml(line)}</text>`).join('');
+        return boardSvg(frame, config, true)
+          .replace(`viewBox="0 0 ${width} ${height}"`, `viewBox="0 0 ${width} ${height + footerHeight}"`)
+          .replace('</svg>', `<metadata id="match3-project-key">${escapeXml(projectKey)}</metadata>${footer}</svg>`);
+      }
+
       function downloadFrame(index) {
         const frame = state.frames[index];
         if (!frame) return;
-        const svg = boardSvg(frame, state.config, true);
+        const svg = exportFrameSvg(frame, state.config, state.projectKey);
         const a = document.createElement('a');
         a.href = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
         a.download = `${String(index + 1).padStart(2, '0')}-${state.config.seed.replace(/[^a-zа-я0-9_-]+/gi, '-')}.svg`;
@@ -1659,7 +1675,7 @@
         const playerLabel = state.config.profile === 'masters' ? ` · ${state.config.mastersTwoPlayers ? '2 игрока' : '1 игрок'}` : '';
         const stageWord = pluralRu(state.frames.length, 'этап', 'этапа', 'этапов');
         $('#scenario-subtitle').textContent = `${modeLabel} · ${state.frames.length} ${stageWord} · ${PROFILE_NAMES[state.config.profile]}${playerLabel}${bigMatchLabel}`;
-        $('#metric-seed').textContent = state.config.seed.length > 16 ? state.config.seed.slice(0, 14) + '…' : state.config.seed;
+        $('#metric-seed').textContent = state.projectKey;
         $('#metric-speed').textContent = `${state.config.speed} / 10`;
         $('#metric-profile').textContent = PROFILE_NAMES[state.config.profile];
         $('#metric-spawn').textContent = SPAWN_DIRECTIONS[state.config.spawn].label;
@@ -1721,7 +1737,8 @@
           state.hasScenario = true;
           setCopyReady(Boolean(play));
           updateGameplayUi();
-          $('#seed').value = encodeProjectKey(config, supplied);
+          state.projectKey = encodeProjectKey(config, supplied);
+          $('#seed').value = state.projectKey;
           stopPlayback();
           renderTimeline();
           updateMetrics();
@@ -1768,7 +1785,8 @@
         }
         state.manualGame = { board, rng, move: 0, player: 1, movesUsedByCurrentPlayer: 0, animating: false };
         state.selectedCell = null;
-        $('#seed').value = encodeProjectKey(config, suppliedBoard);
+        state.projectKey = encodeProjectKey(config, suppliedBoard);
+        $('#seed').value = state.projectKey;
         $('#manual-swap-message').hidden = true;
         $('#finish-manual').hidden = false;
         $('#download-all').hidden = true;
