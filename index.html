@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Match-3 Layout Lab · v1.2.0</title>
+  <title>Match-3 Layout Lab · v1.2.1</title>
   <style>
     :root {
       color-scheme: dark;
@@ -305,7 +305,7 @@
     <header class="topbar">
       <div class="brand">
         <div class="brand-mark">M3</div>
-        <div><div class="brand-title"><h1>Match-3 Layout Lab</h1><span class="version-badge">v1.2.0</span></div><p>Детерминированные раскладки для креатива</p></div>
+        <div><div class="brand-title"><h1>Match-3 Layout Lab</h1><span class="version-badge">v1.2.1</span></div><p>Детерминированные раскладки для креатива</p></div>
       </div>
     </header>
 
@@ -493,7 +493,7 @@
       const DEFAULT_COLORS = ['#ff6b78', '#ffc857', '#68e39b', '#5cc8ff', '#a78bfa', '#ff8fd8', '#ff9f43', '#4f6cff'];
       const PROFILE_NAMES = { empire: 'Empire & Puzzles', masters: 'Match Masters', universal: 'Универсальный' };
       const BIG_MATCH_FREQUENCIES = [
-        { label: 'Никогда', chance: 0 },
+        { label: 'Без приоритета', chance: 0 },
         { label: 'Иногда', chance: .28 },
         { label: 'Часто', chance: .58 },
         { label: 'Почти каждый ход', chance: .88 },
@@ -885,90 +885,9 @@
 
       function scoreSwap(board, swap) {
         swapCells(board, swap.a, swap.b);
-        const score = findMatches(board).keys.size;
+        const score = Math.max(0, ...findMatches(board).combos.map(combo => combo.size));
         swapCells(board, swap.a, swap.b);
         return score;
-      }
-
-      function planBigMatch(board, rng, config) {
-        const rows = board.length;
-        const cols = board[0].length;
-        const crossPlans = [];
-        const linePlans = [];
-        const fallbackPlans = [];
-
-        if (cols >= 5) {
-          for (let r = 0; r < rows; r++) {
-            for (let start = 0; start <= cols - 5; start++) {
-              const gap = start + 2;
-              if (r > 0) linePlans.push({ axis: 'row', fixed: r, start, length: 5, gap, source: [r - 1, gap], extra: [] });
-              if (r + 1 < rows) linePlans.push({ axis: 'row', fixed: r, start, length: 5, gap, source: [r + 1, gap], extra: [] });
-              if (r > 0 && r + 2 < rows) crossPlans.push({ axis: 'row', fixed: r, start, length: 5, gap, source: [r - 1, gap], extra: [[r + 1, gap], [r + 2, gap]] });
-              if (r + 1 < rows && r - 2 >= 0) crossPlans.push({ axis: 'row', fixed: r, start, length: 5, gap, source: [r + 1, gap], extra: [[r - 1, gap], [r - 2, gap]] });
-            }
-          }
-        }
-        if (rows >= 5) {
-          for (let c = 0; c < cols; c++) {
-            for (let start = 0; start <= rows - 5; start++) {
-              const gap = start + 2;
-              if (c > 0) linePlans.push({ axis: 'col', fixed: c, start, length: 5, gap, source: [gap, c - 1], extra: [] });
-              if (c + 1 < cols) linePlans.push({ axis: 'col', fixed: c, start, length: 5, gap, source: [gap, c + 1], extra: [] });
-              if (c > 0 && c + 2 < cols) crossPlans.push({ axis: 'col', fixed: c, start, length: 5, gap, source: [gap, c - 1], extra: [[gap, c + 1], [gap, c + 2]] });
-              if (c + 1 < cols && c - 2 >= 0) crossPlans.push({ axis: 'col', fixed: c, start, length: 5, gap, source: [gap, c + 1], extra: [[gap, c - 1], [gap, c - 2]] });
-            }
-          }
-        }
-        if (!linePlans.length) {
-          if (cols >= 4) {
-            for (let r = 0; r < rows; r++) for (let start = 0; start <= cols - 4; start++) {
-              const gap = start + 1;
-              if (r > 0) fallbackPlans.push({ axis: 'row', fixed: r, start, length: 4, gap, source: [r - 1, gap], extra: [] });
-              if (r + 1 < rows) fallbackPlans.push({ axis: 'row', fixed: r, start, length: 4, gap, source: [r + 1, gap], extra: [] });
-            }
-          }
-          if (rows >= 4) {
-            for (let c = 0; c < cols; c++) for (let start = 0; start <= rows - 4; start++) {
-              const gap = start + 1;
-              if (c > 0) fallbackPlans.push({ axis: 'col', fixed: c, start, length: 4, gap, source: [gap, c - 1], extra: [] });
-              if (c + 1 < cols) fallbackPlans.push({ axis: 'col', fixed: c, start, length: 4, gap, source: [gap, c + 1], extra: [] });
-            }
-          }
-        }
-
-        const groups = config.bigMatchLevel >= 3
-          ? [crossPlans, linePlans, fallbackPlans]
-          : config.bigMatchLevel === 2 && rng() < .28
-            ? [crossPlans, linePlans, fallbackPlans]
-            : [linePlans, crossPlans, fallbackPlans];
-
-        for (const plans of groups) {
-          for (const plan of shuffled(plans, rng)) {
-            const required = [plan.source, ...plan.extra, ...Array.from({ length: plan.length }, (_, i) => plan.axis === 'row' ? [plan.fixed, plan.start + i] : [plan.start + i, plan.fixed])];
-            if (required.some(([r, c]) => !board[r][c])) continue;
-            for (const targetType of shuffled(Array.from({ length: config.typeCount }, (_, i) => i), rng)) {
-              const candidate = cloneBoard(board);
-              const gapType = (targetType + 1 + Math.floor(rng() * (config.typeCount - 1))) % config.typeCount;
-              for (let i = 0; i < plan.length; i++) {
-                const r = plan.axis === 'row' ? plan.fixed : plan.start + i;
-                const c = plan.axis === 'row' ? plan.start + i : plan.fixed;
-                candidate[r][c] = makeCell((plan.axis === 'row' ? c : r) === plan.gap ? gapType : targetType);
-              }
-              candidate[plan.source[0]][plan.source[1]] = makeCell(targetType);
-              plan.extra.forEach(([r, c]) => { candidate[r][c] = makeCell(targetType); });
-              if (findMatches(candidate).keys.size) continue;
-              const destination = plan.axis === 'row' ? [plan.fixed, plan.gap] : [plan.gap, plan.fixed];
-              const swap = { a: plan.source, b: destination };
-              swapCells(candidate, swap.a, swap.b);
-              const result = findMatches(candidate);
-              const size = result.combos.find(combo => combo.keys.has(coordKey(destination[0], destination[1])))?.size || 0;
-              swapCells(candidate, swap.a, swap.b);
-              const expected = plan.extra.length ? 7 : plan.length;
-              if (size >= expected) return { board: candidate, swap, size };
-            }
-          }
-        }
-        return null;
       }
 
       function isMatchMastersBombCombo(combo) {
@@ -1112,6 +1031,35 @@
         return collapsed.board;
       }
 
+      function avoidSpawnMatches(board, spawned, rng, typeCount) {
+        const cells = [...spawned].map(key => key.split(':').map(Number));
+        const original = cells.map(([r, c]) => board[r][c]);
+        const choices = cells.map(() => shuffled(Array.from({ length: typeCount }, (_, type) => type), rng));
+        cells.forEach(([r, c]) => { board[r][c] = null; });
+        let remaining = 10000;
+        const createsMatch = (r, c, type) => [[1, 0], [0, 1]].some(([dr, dc]) => {
+          let count = 1;
+          for (const sign of [-1, 1]) {
+            for (let step = 1; board[r + dr * step * sign]?.[c + dc * step * sign]?.type === type; step++) count++;
+          }
+          return count >= 3;
+        });
+        const fill = index => {
+          if (index === cells.length) return true;
+          const [r, c] = cells[index];
+          for (const type of choices[index]) {
+            if (--remaining < 0) break;
+            if (createsMatch(r, c, type)) continue;
+            board[r][c] = makeCell(type);
+            if (fill(index + 1)) return true;
+            board[r][c] = null;
+          }
+          return false;
+        };
+        // Some survivor layouts cannot avoid a cascade. Keep them intact and record the cascade.
+        if (!fill(0)) cells.forEach(([r, c], i) => { board[r][c] = original[i]; });
+      }
+
       function collapseAndFill(board, clearKeys, keepKeys, rng, config) {
         const rows = board.length;
         const cols = board[0].length;
@@ -1151,6 +1099,7 @@
             }
             fillSegment();
           }
+          if (!config.cascades) avoidSpawnMatches(next, spawned, rng, config.typeCount);
           return { board: next, spawned, motion };
         }
         if (config.spawn === 'top' || config.spawn === 'bottom') {
@@ -1210,6 +1159,7 @@
             }
           }
         }
+        if (!config.cascades) avoidSpawnMatches(next, spawned, rng, config.typeCount);
         return { board: next, spawned, motion };
       }
 
@@ -1239,7 +1189,7 @@
         const bonus = bonusParts.join(' · ') || null;
 
         const sizes = matches.combos.map(combo => combo.size).sort((a, b) => b - a);
-        const matchNote = [config.bigMatches && isBigMatch ? `Частота матчей 4+: ${BIG_MATCH_FREQUENCIES[config.bigMatchLevel].label.toLowerCase()}` : null, bonus, matches.combos.length > 1 ? `Отдельных совпадений: ${matches.combos.length}` : `Собрано фишек: ${sizes[0]}`].filter(Boolean).join(' · ');
+        const matchNote = [config.bigMatches && isBigMatch ? `Приоритет матчей 4+: ${BIG_MATCH_FREQUENCIES[config.bigMatchLevel].label.toLowerCase()}` : null, bonus, matches.combos.length > 1 ? `Отдельных совпадений: ${matches.combos.length}` : `Собрано фишек: ${sizes[0]}`].filter(Boolean).join(' · ');
         addFrame(frames, board, 'match', matchTitle(matches, titlePrefix), matchNote, {
           matches: [...matches.keys], swap, bonus, bigMatch: isBigMatch,
           matchCount: matches.combos.length, matchSizes: sizes, matchedCellCount: matches.keys.size
@@ -1281,21 +1231,15 @@
           initialMatches = findMatches(board);
         }
 
+        if (initialMatches.keys.size) {
+          board = generateStableBoard(rng, config.typeCount, config.rows, config.cols, config.boardMask);
+          addFrame(frames, board, 'shuffle', 'Стартовая стабилизация', 'Достигнут безопасный предел каскадов — поле пересобрано.');
+        }
         const moveCount = Math.min(MAX_MOVES, Math.max(1, Math.round(config.duration * (0.25 + config.speed * 0.075))));
         let currentPlayer = 1;
         let movesUsedByCurrentPlayer = 0;
         for (let move = 1; move <= moveCount; move++) {
           const movePrefix = playerTurnPrefix(config, currentPlayer, `Ход ${move}`);
-          const bigMatchChance = BIG_MATCH_FREQUENCIES[config.bigMatchLevel]?.chance || 0;
-          let planned = null;
-          if (config.bigMatches && !(suppliedBoard && move === 1) && rng() < bigMatchChance) {
-            planned = planBigMatch(board, rng, config);
-            if (planned) {
-              board = planned.board;
-              frames[frames.length - 1].board = cloneBoard(board);
-              frames[frames.length - 1].note += ` · подготовлен матч на ${planned.size} фишек`;
-            }
-          }
           let swaps = findValidSwaps(board, config.profile === 'masters');
           if (!swaps.length) {
             if (suppliedBoard && move === 1) throw new Error('В ручной раскладке нет доступного хода. Измените несколько фишек и попробуйте снова.');
@@ -1304,9 +1248,11 @@
             swaps = findValidSwaps(board, config.profile === 'masters');
             if (!swaps.length) throw new Error('Для этой формы не удалось подобрать доступный ход. Добавьте соседние клетки для матчей из трёх фишек или измените seed.');
           }
-          if (config.bigMatches && !planned) swaps.sort((left, right) => scoreSwap(board, right) - scoreSwap(board, left));
-          const preferredCount = config.bigMatches ? Math.max(1, Math.ceil(swaps.length / (config.bigMatchLevel + 1))) : swaps.length;
-          const selected = planned?.swap || swaps[Math.floor(rng() * preferredCount)];
+          const bigMatchChance = BIG_MATCH_FREQUENCIES[config.bigMatchLevel]?.chance || 0;
+          const preferBig = config.bigMatches && rng() < bigMatchChance;
+          const preferred = swaps.filter(swap => (scoreSwap(board, swap) >= 4) === preferBig);
+          const choices = preferred.length ? preferred : swaps;
+          const selected = choices[Math.floor(rng() * choices.length)];
           swapCells(board, selected.a, selected.b);
           addFrame(frames, board, 'swap', `${movePrefix}: обмен`, `Клетки ${selected.a[1] + 1}:${selected.a[0] + 1} и ${selected.b[1] + 1}:${selected.b[0] + 1}`, { swap: selected });
           let matches = findMatches(board);
@@ -1320,20 +1266,15 @@
           }
 
           let cascades = 0;
-          matches = config.cascades ? findMatches(board) : { keys: new Set() };
+          matches = findMatches(board);
           while (matches.keys.size && cascades++ < 5) {
             extraMove ||= grantsMastersExtraMove(matches, config);
             board = resolveMatch(frames, board, matches, rng, config, playerTurnPrefix(config, currentPlayer, `Каскад ${move}.${cascades}`), null);
             matches = findMatches(board);
           }
-          if (config.cascades && matches.keys.size) {
+          if (matches.keys.size) {
             board = generateStableBoard(rng, config.typeCount, config.rows, config.cols, config.boardMask);
             addFrame(frames, board, 'shuffle', `${movePrefix}: стабилизация`, 'Достигнут безопасный предел каскадов — поле детерминированно пересобрано без готовых совпадений.');
-          }
-          if (!config.cascades && findMatches(board).keys.size) {
-            board = generateStableBoard(rng, config.typeCount, config.rows, config.cols, config.boardMask);
-            frames[frames.length - 1].board = cloneBoard(board);
-            frames[frames.length - 1].note += ' · каскады отключены, поле стабилизировано';
           }
           if (config.profile === 'masters' && config.mastersTwoPlayers && !extraMove) {
             movesUsedByCurrentPlayer++;
@@ -1783,6 +1724,10 @@
           board = resolveMatch(state.frames, board, matches, rng, config, 'Стартовый каскад', null);
           matches = findMatches(board);
         }
+        if (matches.keys.size) {
+          board = generateStableBoard(rng, config.typeCount, config.rows, config.cols, config.boardMask);
+          addFrame(state.frames, board, 'shuffle', 'Стартовая стабилизация', 'Достигнут безопасный предел каскадов — поле пересобрано.');
+        }
         state.manualGame = { board, rng, move: 0, player: 1, movesUsedByCurrentPlayer: 0, animating: false };
         state.selectedCell = null;
         state.projectKey = encodeProjectKey(config, suppliedBoard);
@@ -1868,19 +1813,15 @@
           game.board = resolveMatch(state.frames, game.board, matches, game.rng, state.config, movePrefix, swap);
         }
         let cascades = 0;
-        matches = state.config.cascades ? findMatches(game.board) : { keys: new Set() };
+        matches = findMatches(game.board);
         while (matches.keys.size && cascades++ < 5) {
           extraMove ||= grantsMastersExtraMove(matches, state.config);
           game.board = resolveMatch(state.frames, game.board, matches, game.rng, state.config, playerTurnPrefix(state.config, currentPlayer, `Каскад ${game.move}.${cascades}`), null);
           matches = findMatches(game.board);
         }
-        if (state.config.cascades && matches.keys.size) {
+        if (matches.keys.size) {
           game.board = generateStableBoard(game.rng, state.config.typeCount, state.config.rows, state.config.cols, state.config.boardMask);
           addFrame(state.frames, game.board, 'shuffle', `${movePrefix}: стабилизация`, 'Достигнут безопасный предел каскадов — поле детерминированно пересобрано без готовых совпадений.');
-        } else if (!state.config.cascades && findMatches(game.board).keys.size) {
-          game.board = generateStableBoard(game.rng, state.config.typeCount, state.config.rows, state.config.cols, state.config.boardMask);
-          state.frames[state.frames.length - 1].board = cloneBoard(game.board);
-          state.frames[state.frames.length - 1].note += ' · каскады отключены, поле стабилизировано';
         }
         if (state.config.profile === 'masters' && state.config.mastersTwoPlayers && !extraMove) {
           game.movesUsedByCurrentPlayer++;
@@ -1993,14 +1934,14 @@
         const profile = $('input[name="profile"]:checked').value;
         let html = `<div class="modifier-stack">
           <div class="modifier-group">
-            <label class="check-row"><input id="allow-cascades" type="checkbox" checked><span><b>Разрешить каскады</b><small>Автоматически схлопывать новые совпадения после заполнения.</small></span></label>
+            <label class="check-row"><input id="allow-cascades" type="checkbox" checked><span><b>Разрешить каскады</b><small>Выключено — новые фишки подбираются без совпадений, если это возможно. Совпадения оставшихся фишек всё равно разыгрываются.</small></span></label>
           </div>
           <div class="modifier-group">
-            <div class="modifier-heading">Частота матчей больше трёх</div>
+            <div class="modifier-heading">Приоритет матчей больше трёх</div>
             <div class="segmented five">
               ${BIG_MATCH_FREQUENCIES.map((item, level) => `<input id="big-level-${level}" type="radio" name="big-match-level" value="${level}" ${state.bigMatchLevel === level ? 'checked' : ''}><label for="big-level-${level}">${item.label}</label>`).join('')}
             </div>
-            <p class="section-note">Определяет, как часто генератор специально подготавливает совпадения из четырёх и более фишек.</p>
+            <p class="section-note">Определяет, как часто автоподбор предпочитает доступный матч 4+. Если подходящего хода нет, выбирается другой. Поле не меняется; в ручной игре ход выбираете вы.</p>
           </div>`;
         if (profile === 'empire') {
           html += `<div class="modifier-group">
